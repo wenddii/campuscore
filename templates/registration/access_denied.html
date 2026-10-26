@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Access denied | CampusCore{% endblock %}
+{% block content %}
+<section class="card narrow">
+  <h1>Access denied</h1>
+  <p>Your account does not have permission to use this area.</p>
+  <a class="button" href="{% url 'registrations:register' %}">Return to registration</a>
+</section>
+{% endblock %}

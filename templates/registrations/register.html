@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}Student registration | CampusCore{% endblock %}
+{% block content %}
+<section class="card form-card">
+  <h1>Student registration</h1>
+  <p class="muted">Submit your details for university review. Cafeteria access starts only after verification.</p>
+  {% if form.non_field_errors %}<div class="errors">{{ form.non_field_errors }}</div>{% endif %}
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <div class="grid two">
+      {% for field in form %}
+        {% if field.name != "bank_account_number" and field.name != "bank_book_photo" and field.name != "photo" %}
+          <div class="field {% if field.name == 'information_confirmed' %}full{% endif %}">
+            {{ field.label_tag }}{{ field }}
+            {% for error in field.errors %}<div class="error">{{ error }}</div>{% endfor %}
+          </div>
+        {% endif %}
+      {% endfor %}
+      <div id="photo-field" class="field">
+        {{ form.photo.label_tag }}{{ form.photo }}
+        {% for error in form.photo.errors %}<div class="error">{{ error }}</div>{% endfor %}
+      </div>
+      <div id="bank-fields" class="field full">
+        {{ form.bank_account_number.label_tag }}{{ form.bank_account_number }}
+        {% for error in form.bank_account_number.errors %}<div class="error">{{ error }}</div>{% endfor %}
+        {{ form.bank_book_photo.label_tag }}{{ form.bank_book_photo }}
+        {% for error in form.bank_book_photo.errors %}<div class="error">{{ error }}</div>{% endfor %}
+      </div>
+    </div>
+    <button class="button" type="submit">Submit registration</button>
+  </form>
+</section>
+<script>
+  const typeField = document.getElementById("id_student_type");
+  const photoField = document.getElementById("photo-field");
+  const bankFields = document.getElementById("bank-fields");
+  function updateRegistrationFields() {
+    const cafeteria = typeField.value === "cafeteria";
+    photoField.hidden = !cafeteria;
+    bankFields.hidden = cafeteria;
+    document.getElementById("id_photo").disabled = !cafeteria;
+    document.getElementById("id_bank_account_number").disabled = cafeteria;
+    document.getElementById("id_bank_book_photo").disabled = cafeteria;
+  }
+  typeField.addEventListener("change", updateRegistrationFields);
+  updateRegistrationFields();
+</script>
+{% endblock %}

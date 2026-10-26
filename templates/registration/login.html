@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Owner login | CampusCore{% endblock %}
+{% block content %}
+<section class="card narrow">
+  <h1>Owner / attendant login</h1>
+  <form method="post">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="errors">{{ form.non_field_errors }}</div>{% endif %}
+    {{ form.as_p }}
+    <button class="button" type="submit">Log in</button>
+  </form>
+</section>
+{% endblock %}

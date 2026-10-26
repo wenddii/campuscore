@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Registration submitted | CampusCore{% endblock %}
+{% block content %}
+<section class="card narrow">
+  <h1>Registration submitted</h1>
+  <p>Your registration for <strong>{{ student.full_name }}</strong> ({{ student.student_id }}) is pending owner verification.</p>
+  <p class="muted">A cafeteria QR code is not issued until an owner verifies an eligible cafeteria registration.</p>
+  <a class="button" href="{% url 'registrations:register' %}">Register another student</a>
+</section>
+{% endblock %}
