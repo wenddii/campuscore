@@ -1,15 +1,14 @@
 {% extends "base.html" %}
 {% block title %}{{ student.full_name }} | CampusCore{% endblock %}
 {% block content %}
-<a href="{% url 'students:dashboard' %}">&larr; Back to dashboard</a>
+<a href="{{ dashboard_url }}">&larr; Back to dashboard</a>
 <section class="card detail">
-  <div class="detail-head"><div><h1>{{ student.full_name }}</h1><p>{{ student.student_id }} · {{ student.department }} · {{ student.get_academic_year_display }}</p><p><span class="badge {{ student.verification_status }}">{{ student.get_verification_status_display }}</span></p></div></div>
+  <div class="detail-head"><div><h1>{{ student.full_name }}</h1><p>{{ student.student_id }} · {{ student.department }} · {{ student.get_academic_year_display }}</p><p><span class="badge {{ student.verification_status }}">{{ student.get_verification_status_display }}</span> <span class="badge {{ student.bank_details_status }}">{{ student.get_bank_details_status_display }}</span></p></div><a class="button no-print" href="{% url 'students:edit' student.pk %}?next={{ dashboard_url|urlencode }}">Edit student</a></div>
   <dl class="details"><dt>Submitted</dt><dd>{{ student.created_at }}</dd><dt>Bank account number</dt><dd>{{ student.bank_account_number }}</dd><dt>Bank review</dt><dd>{{ student.get_bank_details_status_display }}</dd><dt>Declaration</dt><dd>{{ student.confirmation_name }} ({{ student.confirmed_at }})</dd></dl>
   {% if student.bank_book_photo %}<p><a href="{{ student.bank_book_photo.url }}" target="_blank" rel="noopener">View bank book document</a></p>{% endif %}
-  <div class="actions">
-    {% if student.verification_status != "verified" %}<form method="post" action="{% url 'students:verify' student.pk %}">{% csrf_token %}<button class="button" type="submit">Verify registration</button></form>{% endif %}
-    {% if student.verification_status != "rejected" %}<form method="post" action="{% url 'students:reject' student.pk %}">{% csrf_token %}<button class="button danger" type="submit">Reject registration</button></form>{% endif %}
-    {% if student.bank_details_status == "pending" %}<form method="post" action="{% url 'students:review_bank' student.pk 'approve' %}">{% csrf_token %}<button class="button" type="submit">Approve bank details</button></form><form method="post" action="{% url 'students:review_bank' student.pk 'reject' %}">{% csrf_token %}<button class="button danger" type="submit">Reject bank details</button></form>{% endif %}
+  <div class="actions no-print">
+    <form method="post" action="{% url 'students:update_status' student.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ dashboard_url }}"><label>Registration status {{ verification_form.status }}</label><button class="button" type="submit">Update registration</button></form>
+    <form method="post" action="{% url 'students:update_bank_status' student.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ dashboard_url }}"><label>Bank-details status {{ bank_status_form.status }}</label><button class="button" type="submit">Update bank details</button></form>
   </div>
 </section>
 {% endblock %}

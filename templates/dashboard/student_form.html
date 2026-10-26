@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% block title %}{{ page_title }} | CampusCore{% endblock %}
+{% block content %}
+<a href="{{ cancel_url }}">&larr; Back to dashboard</a>
+<section class="card form-card">
+  <h1>{{ page_title }}</h1>
+  {% if owner_created %}<p class="muted">This registration is being entered by an owner. It will remain pending until reviewed; no student declaration is recorded.</p>{% endif %}
+  {% if form.non_field_errors %}<div class="errors">{{ form.non_field_errors }}</div>{% endif %}
+  <form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {% if next_url %}<input type="hidden" name="next" value="{{ next_url }}">{% endif %}
+    <div class="grid two">
+      {% for field in form %}
+        <div class="field {% if field.name == 'bank_book_photo' %}full{% endif %}">
+          {{ field.label_tag }}{{ field }}
+          {% for error in field.errors %}<div class="error">{{ error }}</div>{% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+    <div class="actions">
+      <button class="button" type="submit">{% if owner_created %}Register student{% else %}Save changes{% endif %}</button>
+      <a class="button secondary" href="{{ cancel_url }}">Cancel</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

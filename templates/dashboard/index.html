@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Owner dashboard | CampusCore{% endblock %}
 {% block content %}
-<div class="page-heading"><div><h1>Owner dashboard</h1><p class="muted">Review student registrations and bank details.</p></div></div>
+<div class="page-heading"><div><h1>Owner dashboard</h1><p class="muted">Review student registrations and bank details.</p></div><a class="button no-print" href="{% url 'students:register' %}">Register student</a></div>
 <div class="stats">
   <div class="stat"><strong>{{ total_count }}</strong><span>Total students</span></div>
   <div class="stat"><strong>{{ pending_count }}</strong><span>Pending</span></div>
@@ -46,8 +46,8 @@
 
 <section class="card print-section">
   <div class="section-heading"><h2>Student registrations</h2><button class="button no-print print-button" type="button" onclick="window.print()">Print</button></div>
-  <div class="table-wrap"><table><thead><tr><th>Student ID</th><th>Full name</th><th>Department</th><th>Academic year</th><th>Registration verification</th><th>Bank details</th></tr></thead>
-  <tbody>{% for student in students %}<tr><td><a href="{% url 'students:detail' student.pk %}">{{ student.student_id }}</a></td><td>{{ student.full_name }}</td><td>{{ student.department }}</td><td>{{ student.get_academic_year_display }}</td><td><span class="badge {{ student.verification_status }}">{{ student.get_verification_status_display }}</span></td><td><span class="badge {{ student.bank_details_status }}">{{ student.get_bank_details_status_display }}</span></td></tr>{% empty %}<tr><td colspan="6">No students match your filters.</td></tr>{% endfor %}</tbody></table></div>
+  <div class="table-wrap"><table><thead><tr><th>Student ID</th><th>Full name</th><th>Department</th><th>Academic year</th><th>Registration verification</th><th>Bank details</th><th class="no-print">Actions</th></tr></thead>
+  <tbody>{% for student in students %}<tr><td><a href="{% url 'students:detail' student.pk %}?next={{ request.get_full_path|urlencode }}">{{ student.student_id }}</a></td><td>{{ student.full_name }}</td><td>{{ student.department }}</td><td>{{ student.get_academic_year_display }}</td><td><span class="badge {{ student.verification_status }}">{{ student.get_verification_status_display }}</span></td><td><span class="badge {{ student.bank_details_status }}">{{ student.get_bank_details_status_display }}</span></td><td class="no-print">{% if student.verification_status == "verified" and student.bank_details_status == "verified" %}<span class="muted">Approved</span>{% else %}<form class="inline-form" method="post" action="{% url 'students:approve' student.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="button approve-button" type="submit">Approve</button></form>{% endif %} <a href="{% url 'students:edit' student.pk %}?next={{ request.get_full_path|urlencode }}">Edit</a></td></tr>{% empty %}<tr><td colspan="7">No students match your filters.</td></tr>{% endfor %}</tbody></table></div>
   {% if page_obj.paginator.num_pages > 1 %}
     <nav class="pagination no-print" aria-label="Student pages">
       {% if page_obj.has_previous %}<a href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}

@@ -1,13 +1,21 @@
 from django.contrib import messages
 from functools import wraps
+from urllib.parse import quote
 
 from django.contrib.auth.decorators import login_required
+from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
+from .forms import (
+    BankDetailsStatusForm,
+    OwnerStudentCreateForm,
+    OwnerStudentEditForm,
+    VerificationStatusForm,
+)
 from .models import Student
 from .models import Department
 
@@ -124,8 +132,45 @@ def dashboard(request):
         "bank_review_count": Student.objects.filter(
             bank_details_status=Student.BankDetailsStatus.PENDING,
         ).count(),
+        "register_url": reverse("students:register"),
     }
     return render(request, "dashboard/index.html", context)
+
+
+@staff_required
+def register_student(request):
+    if request.method == "POST":
+        form = OwnerStudentCreateForm(request.POST, request.FILES)
+        if form.is_valid():
+            try:
+                student = form.save(commit=False)
+                student.full_clean()
+                student.save()
+            except IntegrityError:
+                form.add_error(
+                    None,
+                    "A student with this student ID or bank account already exists.",
+                )
+            except ValidationError:
+                form.add_error(
+                    None,
+                    "Please correct the student information before saving.",
+                )
+            else:
+                messages.success(request, "Student registered successfully and is pending review.")
+                return redirect("students:detail", student_id=student.pk)
+    else:
+        form = OwnerStudentCreateForm()
+    return render(
+        request,
+        "dashboard/student_form.html",
+        {
+            "form": form,
+            "page_title": "Register student",
+            "owner_created": True,
+            "cancel_url": reverse("students:dashboard"),
+        },
+    )
 
 
 @staff_required
@@ -133,11 +178,120 @@ def student_detail(request, student_id):
     student = get_object_or_404(
         Student.objects.select_related("department"), pk=student_id
     )
-    return render(request, "dashboard/student_detail.html", {"student": student})
+    next_url = request.GET.get("next", "")
+    if not next_url.startswith("/") or next_url.startswith("//"):
+        next_url = reverse("students:dashboard")
+    return render(
+        request,
+        "dashboard/student_detail.html",
+        {
+            "student": student,
+            "verification_form": VerificationStatusForm(
+                initial={"status": student.verification_status}
+            ),
+            "bank_status_form": BankDetailsStatusForm(
+                initial={"status": student.bank_details_status}
+            ),
+            "dashboard_url": next_url,
+        },
+    )
 
 
-def _redirect_detail(student):
+@staff_required
+def edit_student(request, student_id):
+    student = get_object_or_404(Student, pk=student_id)
+    next_url = request.POST.get("next") or request.GET.get("next", "")
+    if not next_url.startswith("/") or next_url.startswith("//"):
+        next_url = reverse("students:detail", args=[student.pk])
+    if request.method == "POST":
+        form = OwnerStudentEditForm(
+            request.POST, request.FILES, instance=student
+        )
+        if form.is_valid():
+            try:
+                student = form.save(commit=False)
+                student.full_clean()
+                student.save()
+            except IntegrityError:
+                form.add_error(
+                    None,
+                    "A student with this bank account already exists.",
+                )
+            except ValidationError:
+                form.add_error(
+                    None,
+                    "Please correct the student information before saving.",
+                )
+            else:
+                messages.success(request, "Student information updated.")
+                return redirect(next_url)
+    else:
+        form = OwnerStudentEditForm(instance=student)
+    return render(
+        request,
+        "dashboard/student_form.html",
+        {
+            "form": form,
+            "page_title": f"Edit {student.full_name}",
+            "cancel_url": next_url,
+            "next_url": next_url,
+        },
+    )
+
+
+def _redirect_detail(student, next_url=""):
+    if next_url.startswith("/") and not next_url.startswith("//"):
+        return redirect(
+            f"{reverse('students:detail', args=[student.pk])}?next={quote(next_url, safe='')}"
+        )
     return redirect("students:detail", student_id=student.pk)
+
+
+def _safe_next_url(value):
+    if value.startswith("/") and not value.startswith("//"):
+        return value
+    return reverse("students:dashboard")
+
+
+@staff_required
+@require_POST
+def approve_student(request, student_id):
+    student = get_object_or_404(Student, pk=student_id)
+    next_url = _safe_next_url(request.POST.get("next", ""))
+
+    if (
+        student.verification_status == Student.VerificationStatus.VERIFIED
+        and student.bank_details_status == Student.BankDetailsStatus.VERIFIED
+    ):
+        messages.info(request, "This student has already been fully approved.")
+        return redirect(next_url)
+
+    student.verification_status = Student.VerificationStatus.VERIFIED
+    student.bank_details_status = Student.BankDetailsStatus.VERIFIED
+    try:
+        student.full_clean()
+    except ValidationError as error:
+        errors = "; ".join(
+            message
+            for messages_for_field in error.message_dict.values()
+            for message in messages_for_field
+        )
+        messages.error(
+            request,
+            f"Student cannot be approved. Correct the following: {errors}",
+        )
+        return redirect(next_url)
+
+    with transaction.atomic():
+        student.save(
+            update_fields=[
+                "verification_status",
+                "bank_details_status",
+                "updated_at",
+            ]
+        )
+    messages.success(request, "Student registration and bank details approved.")
+    return redirect(next_url)
 
 
 @staff_required
@@ -145,11 +299,23 @@ def _redirect_detail(student):
 def verify_student(request, student_id):
     student = get_object_or_404(Student, pk=student_id)
     if request.method == "POST":
-        with transaction.atomic():
-            student.verification_status = Student.VerificationStatus.VERIFIED
+        student.verification_status = Student.VerificationStatus.VERIFIED
+        try:
+            student.full_clean()
+        except ValidationError as error:
+            messages.error(
+                request,
+                "Registration cannot be verified: "
+                + "; ".join(
+                    message
+                    for messages_for_field in error.message_dict.values()
+                    for message in messages_for_field
+                ),
+            )
+        else:
             student.save(update_fields=["verification_status", "updated_at"])
-        messages.success(request, "Student verified successfully.")
-    return _redirect_detail(student)
+            messages.success(request, "Student verified successfully.")
+    return _redirect_detail(student, request.POST.get("next", ""))
 
 
 @staff_required
@@ -160,7 +326,7 @@ def reject_student(request, student_id):
         student.verification_status = Student.VerificationStatus.REJECTED
         student.save(update_fields=["verification_status", "updated_at"])
         messages.success(request, "Student registration rejected.")
-    return _redirect_detail(student)
+    return _redirect_detail(student, request.POST.get("next", ""))
 
 
 @staff_required
@@ -170,11 +336,72 @@ def review_bank(request, student_id, decision):
     if request.method == "POST":
         if decision == "approve":
             student.bank_details_status = Student.BankDetailsStatus.VERIFIED
+            try:
+                student.full_clean()
+            except ValidationError:
+                messages.error(
+                    request,
+                    "Bank details cannot be verified until the bank account "
+                    "number and bank book photo are present.",
+                )
+                return _redirect_detail(student, request.POST.get("next", ""))
         elif decision == "reject":
             student.bank_details_status = Student.BankDetailsStatus.REJECTED
         else:
             messages.error(request, "Invalid bank review action.")
-            return _redirect_detail(student)
+            return _redirect_detail(student, request.POST.get("next", ""))
         student.save(update_fields=["bank_details_status", "updated_at"])
         messages.success(request, "Bank details review updated.")
-    return _redirect_detail(student)
+    return _redirect_detail(student, request.POST.get("next", ""))
+
+
+@staff_required
+@require_POST
+def update_verification_status(request, student_id):
+    student = get_object_or_404(Student, pk=student_id)
+    form = VerificationStatusForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Select a valid registration status.")
+        return _redirect_detail(student, request.POST.get("next", ""))
+    status = form.cleaned_data["status"]
+    if status == Student.VerificationStatus.VERIFIED:
+        student.verification_status = status
+        try:
+            student.full_clean()
+        except ValidationError:
+            messages.error(
+                request,
+                "Registration cannot be verified until all required "
+                "student and bank information is complete.",
+            )
+            return _redirect_detail(student, request.POST.get("next", ""))
+    student.verification_status = status
+    student.save(update_fields=["verification_status", "updated_at"])
+    messages.success(request, "Registration status updated.")
+    return _redirect_detail(student, request.POST.get("next", ""))
+
+
+@staff_required
+@require_POST
+def update_bank_status(request, student_id):
+    student = get_object_or_404(Student, pk=student_id)
+    form = BankDetailsStatusForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, "Select a valid bank-details status.")
+        return _redirect_detail(student, request.POST.get("next", ""))
+    status = form.cleaned_data["status"]
+    if status == Student.BankDetailsStatus.VERIFIED:
+        student.bank_details_status = status
+        try:
+            student.full_clean()
+        except ValidationError:
+            messages.error(
+                request,
+                "Bank details cannot be verified until the account number "
+                "and bank book photo are present.",
+            )
+            return _redirect_detail(student, request.POST.get("next", ""))
+    student.bank_details_status = status
+    student.save(update_fields=["bank_details_status", "updated_at"])
+    messages.success(request, "Bank-details status updated.")
+    return _redirect_detail(student, request.POST.get("next", ""))
