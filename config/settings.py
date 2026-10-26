@@ -42,7 +42,6 @@ INSTALLED_APPS = [
     "apps.accounts.apps.AccountsConfig",
     "apps.students.apps.StudentsConfig",
     "apps.registrations.apps.RegistrationsConfig",
-    "apps.cafeteria.apps.CafeteriaConfig",
 ]
 
 AUTH_USER_MODEL = "accounts.User"

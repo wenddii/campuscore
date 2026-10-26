@@ -4,7 +4,7 @@
 <section class="card narrow">
   <h1>Registration submitted</h1>
   <p>Your registration for <strong>{{ student.full_name }}</strong> ({{ student.student_id }}) is pending owner verification.</p>
-  <p class="muted">A cafeteria QR code is not issued until an owner verifies an eligible cafeteria registration.</p>
+  <p class="muted">Your registration and bank details are pending owner review. You will be contacted if more information is needed.</p>
   <a class="button" href="{% url 'registrations:register' %}">Register another student</a>
 </section>
 {% endblock %}

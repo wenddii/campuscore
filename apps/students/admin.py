@@ -19,13 +19,11 @@ class StudentAdmin(admin.ModelAdmin):
     list_display = (
         "student_id",
         "full_name",
-        "student_type",
         "department",
         "academic_year",
         "information_confirmed",
         "verification_status",
         "bank_details_status",
-        "cafeteria_exempt",
     )
 
     search_fields = (
@@ -34,13 +32,11 @@ class StudentAdmin(admin.ModelAdmin):
     )
 
     list_filter = (
-        "student_type",
         "department",
         "academic_year",
         "information_confirmed",
         "verification_status",
         "bank_details_status",
-        "cafeteria_exempt",
     )
 
     ordering = (
@@ -54,15 +50,12 @@ class StudentAdmin(admin.ModelAdmin):
             "fields": (
                 "student_id",
                 "full_name",
-                "photo",
-                "student_type",
                 "department",
                 "academic_year",
             )
         }),
         ("Bank Details", {
             "fields": (
-                "bank_account_name",
                 "bank_account_number",
                 "bank_book_photo",
                 "bank_details_status",
@@ -78,8 +71,6 @@ class StudentAdmin(admin.ModelAdmin):
         ("Student Verification", {
             "fields": (
                 "verification_status",
-                "cafeteria_exempt",
-                "qr_code",
             )
         }),
         ("Record Information", {
@@ -94,7 +85,6 @@ class StudentAdmin(admin.ModelAdmin):
         "information_confirmed",
         "confirmation_name",
         "confirmed_at",
-        "qr_code",
         "created_at",
         "updated_at",
     )

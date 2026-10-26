@@ -13,11 +13,6 @@ class Department(models.Model):
 
 
 class Student(models.Model):
-
-    class StudentType(models.TextChoices):
-        CAFETERIA = "cafeteria", "Cafeteria"
-        NON_CAFETERIA = "non_cafeteria", "Non-Cafeteria"
-
     class AcademicYear(models.TextChoices):
         YEAR_1 = "1", "Year 1"
         YEAR_2 = "2", "Year 2"
@@ -39,16 +34,6 @@ class Student(models.Model):
 
     student_id = models.CharField(max_length=30, unique=True)
     full_name = models.CharField(max_length=150)
-    cafeteria_exempt = models.BooleanField(default=False)
-    photo = models.ImageField(
-        upload_to="student_photos/",
-        blank=True,
-    )
-
-    qr_code = models.ImageField(
-        upload_to="student_qr_codes/",
-        blank=True,
-    )
 
     department = models.ForeignKey(
         Department,
@@ -59,16 +44,6 @@ class Student(models.Model):
     academic_year = models.CharField(
         max_length=10,
         choices=AcademicYear.choices,
-    )
-
-    student_type = models.CharField(
-        max_length=20,
-        choices=StudentType.choices,
-    )
-
-    bank_account_name = models.CharField(
-        max_length=150,
-        blank=True,
     )
 
     bank_account_number = models.CharField(
@@ -129,30 +104,11 @@ class Student(models.Model):
                         f"Year {year} is not valid for this department."
                     )
 
-        # Non-cafeteria students must submit bank details.
-        if self.student_type == self.StudentType.NON_CAFETERIA:
-            if not self.bank_account_number or not self.bank_account_number.strip():
-                errors["bank_account_number"] = (
-                    "Bank account number is required "
-                    "for non-cafeteria students."
-                )
+        if not self.bank_account_number or not self.bank_account_number.strip():
+            errors["bank_account_number"] = "Bank account number is required."
 
-            if not self.bank_book_photo:
-                errors["bank_book_photo"] = (
-                    "Bank book photo is required "
-                    "for non-cafeteria students."
-                )
-
-        # Cafeteria students do not submit bank details.
-        elif self.student_type == self.StudentType.CAFETERIA:
-            if (
-                self.bank_account_name.strip()
-                or self.bank_account_number
-                or self.bank_book_photo
-            ):
-                errors["student_type"] = (
-                    "Cafeteria students should not submit bank details."
-                )
+        if not self.bank_book_photo:
+            errors["bank_book_photo"] = "Bank book photo is required."
 
         if errors:
             raise ValidationError(errors)

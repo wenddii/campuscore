@@ -17,5 +17,4 @@ urlpatterns = [
         name="logout",
     ),
     path("dashboard/", include("apps.students.urls")),
-    path("cafeteria/", include("apps.cafeteria.urls")),
 ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

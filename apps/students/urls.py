@@ -9,5 +9,4 @@ urlpatterns = [
     path("students/<int:student_id>/verify/", views.verify_student, name="verify"),
     path("students/<int:student_id>/reject/", views.reject_student, name="reject"),
     path("students/<int:student_id>/bank/<str:decision>/", views.review_bank, name="review_bank"),
-    path("students/<int:student_id>/exempt/", views.toggle_exempt, name="toggle_exempt"),
 ]

@@ -2,10 +2,14 @@ from django.contrib import messages
 from functools import wraps
 
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
 from django.db import transaction
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
-from apps.cafeteria.qr_utils import generate_student_qr
+from django.urls import reverse
+from django.views.decorators.http import require_POST
 from .models import Student
+from .models import Department
 
 
 def staff_required(view):
@@ -22,23 +26,91 @@ def dashboard_queryset(request):
     students = Student.objects.select_related("department").all()
     query = request.GET.get("q", "").strip()
     status = request.GET.get("status", "")
-    student_type = request.GET.get("type", "")
+    bank_status = request.GET.get("bank_status", "")
+    department_id = request.GET.get("department", "")
     if query:
         students = students.filter(
-            student_id__icontains=query
-        ) | students.filter(full_name__icontains=query)
+            Q(student_id__icontains=query) | Q(full_name__icontains=query)
+        )
     if status in Student.VerificationStatus.values:
         students = students.filter(verification_status=status)
-    if student_type in Student.StudentType.values:
-        students = students.filter(student_type=student_type)
+    if bank_status in Student.BankDetailsStatus.values:
+        students = students.filter(bank_details_status=bank_status)
+    if department_id.isdigit():
+        students = students.filter(department_id=int(department_id))
     return students.order_by("-created_at")
 
 
 @staff_required
 def dashboard(request):
-    students = dashboard_queryset(request)
+    selected_status = request.GET.get("status", "")
+    if selected_status not in Student.VerificationStatus.values:
+        selected_status = ""
+    selected_bank_status = request.GET.get("bank_status", "")
+    if selected_bank_status not in Student.BankDetailsStatus.values:
+        selected_bank_status = ""
+    selected_department_id = request.GET.get("department", "")
+    selected_department = None
+    if selected_department_id.isdigit():
+        selected_department = Department.objects.filter(
+            pk=int(selected_department_id)
+        ).first()
+        if selected_department is None:
+            selected_department_id = ""
+
+    all_filter_params = request.GET.copy()
+    all_filter_params.pop("page", None)
+    pagination_query = all_filter_params.urlencode()
+
+    departments = Department.objects.annotate(
+        total_students=Count("students"),
+        pending_students=Count(
+            "students",
+            filter=Q(
+                students__verification_status=Student.VerificationStatus.PENDING
+            ),
+        ),
+        verified_students=Count(
+            "students",
+            filter=Q(
+                students__verification_status=Student.VerificationStatus.VERIFIED
+            ),
+        ),
+        rejected_students=Count(
+            "students",
+            filter=Q(
+                students__verification_status=Student.VerificationStatus.REJECTED
+            ),
+        ),
+        pending_bank_reviews=Count(
+            "students",
+            filter=Q(
+                students__bank_details_status=Student.BankDetailsStatus.PENDING
+            ),
+        ),
+    ).order_by("name")
+
+    for department in departments:
+        department_params = request.GET.copy()
+        department_params.pop("page", None)
+        department_params["department"] = str(department.pk)
+        department.filter_url = (
+            f"{reverse('students:dashboard')}?{department_params.urlencode()}"
+        )
+
+    paginator = Paginator(dashboard_queryset(request), 25)
+    page_obj = paginator.get_page(request.GET.get("page"))
     context = {
-        "students": students,
+        "students": page_obj,
+        "page_obj": page_obj,
+        "departments": departments,
+        "selected_department": selected_department,
+        "selected_department_id": selected_department_id,
+        "selected_status": selected_status,
+        "selected_bank_status": selected_bank_status,
+        "pagination_query": pagination_query,
+        "verification_choices": Student.VerificationStatus.choices,
+        "bank_status_choices": Student.BankDetailsStatus.choices,
         "total_count": Student.objects.count(),
         "pending_count": Student.objects.filter(
             verification_status=Student.VerificationStatus.PENDING
@@ -49,11 +121,7 @@ def dashboard(request):
         "rejected_count": Student.objects.filter(
             verification_status=Student.VerificationStatus.REJECTED
         ).count(),
-        "cafeteria_count": Student.objects.filter(
-            student_type=Student.StudentType.CAFETERIA
-        ).count(),
         "bank_review_count": Student.objects.filter(
-            student_type=Student.StudentType.NON_CAFETERIA,
             bank_details_status=Student.BankDetailsStatus.PENDING,
         ).count(),
     }
@@ -73,47 +141,33 @@ def _redirect_detail(student):
 
 
 @staff_required
+@require_POST
 def verify_student(request, student_id):
     student = get_object_or_404(Student, pk=student_id)
     if request.method == "POST":
         with transaction.atomic():
-            if student.student_type != Student.StudentType.CAFETERIA:
-                student.qr_code.delete(save=False)
             student.verification_status = Student.VerificationStatus.VERIFIED
-            qr_exists = (
-                bool(student.qr_code)
-                and student.qr_code.storage.exists(student.qr_code.name)
-            )
-            if (
-                student.student_type == Student.StudentType.CAFETERIA
-                and not student.cafeteria_exempt
-                and not qr_exists
-            ):
-                student.qr_code.save(
-                    f"{student.student_id}_qr.png",
-                    generate_student_qr(student),
-                    save=False,
-                )
-            student.save()
+            student.save(update_fields=["verification_status", "updated_at"])
         messages.success(request, "Student verified successfully.")
     return _redirect_detail(student)
 
 
 @staff_required
+@require_POST
 def reject_student(request, student_id):
     student = get_object_or_404(Student, pk=student_id)
     if request.method == "POST":
         student.verification_status = Student.VerificationStatus.REJECTED
-        student.qr_code.delete(save=False)
-        student.save(update_fields=["verification_status", "qr_code", "updated_at"])
+        student.save(update_fields=["verification_status", "updated_at"])
         messages.success(request, "Student registration rejected.")
     return _redirect_detail(student)
 
 
 @staff_required
+@require_POST
 def review_bank(request, student_id, decision):
     student = get_object_or_404(Student, pk=student_id)
-    if request.method == "POST" and student.student_type == Student.StudentType.NON_CAFETERIA:
+    if request.method == "POST":
         if decision == "approve":
             student.bank_details_status = Student.BankDetailsStatus.VERIFIED
         elif decision == "reject":
@@ -123,29 +177,4 @@ def review_bank(request, student_id, decision):
             return _redirect_detail(student)
         student.save(update_fields=["bank_details_status", "updated_at"])
         messages.success(request, "Bank details review updated.")
-    return _redirect_detail(student)
-
-
-@staff_required
-def toggle_exempt(request, student_id):
-    student = get_object_or_404(Student, pk=student_id)
-    if request.method == "POST":
-        student.cafeteria_exempt = not student.cafeteria_exempt
-        if student.cafeteria_exempt:
-            student.qr_code.delete(save=False)
-        elif (
-            student.student_type == Student.StudentType.CAFETERIA
-            and student.verification_status == Student.VerificationStatus.VERIFIED
-            and (
-                not student.qr_code
-                or not student.qr_code.storage.exists(student.qr_code.name)
-            )
-        ):
-            student.qr_code.save(
-                f"{student.student_id}_qr.png",
-                generate_student_qr(student),
-                save=False,
-            )
-        student.save()
-        messages.success(request, "Cafeteria exemption updated.")
     return _redirect_detail(student)

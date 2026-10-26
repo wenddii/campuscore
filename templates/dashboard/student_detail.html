@@ -3,15 +3,13 @@
 {% block content %}
 <a href="{% url 'students:dashboard' %}">&larr; Back to dashboard</a>
 <section class="card detail">
-  <div class="detail-head">{% if student.photo %}<img class="student-photo" src="{{ student.photo.url }}" alt="Photo of {{ student.full_name }}">{% endif %}<div><h1>{{ student.full_name }}</h1><p>{{ student.student_id }} · {{ student.department }} · {{ student.get_academic_year_display }}</p><p><span class="badge {{ student.verification_status }}">{{ student.get_verification_status_display }}</span></p></div></div>
-  <dl class="details"><dt>Student type</dt><dd>{{ student.get_student_type_display }}</dd><dt>Submitted</dt><dd>{{ student.created_at }}</dd><dt>Bank account name</dt><dd>{{ student.bank_account_name|default:"Not submitted" }}</dd><dt>Bank account number</dt><dd>{{ student.bank_account_number|default:"Not submitted" }}</dd><dt>Bank review</dt><dd>{{ student.get_bank_details_status_display }}</dd></dl>
+  <div class="detail-head"><div><h1>{{ student.full_name }}</h1><p>{{ student.student_id }} · {{ student.department }} · {{ student.get_academic_year_display }}</p><p><span class="badge {{ student.verification_status }}">{{ student.get_verification_status_display }}</span></p></div></div>
+  <dl class="details"><dt>Submitted</dt><dd>{{ student.created_at }}</dd><dt>Bank account number</dt><dd>{{ student.bank_account_number }}</dd><dt>Bank review</dt><dd>{{ student.get_bank_details_status_display }}</dd><dt>Declaration</dt><dd>{{ student.confirmation_name }} ({{ student.confirmed_at }})</dd></dl>
   {% if student.bank_book_photo %}<p><a href="{{ student.bank_book_photo.url }}" target="_blank" rel="noopener">View bank book document</a></p>{% endif %}
-  {% if student.qr_code %}<div><h2>Eligible cafeteria QR code</h2><img class="qr" src="{{ student.qr_code.url }}" alt="Cafeteria QR code for {{ student.student_id }}"></div>{% endif %}
   <div class="actions">
     {% if student.verification_status != "verified" %}<form method="post" action="{% url 'students:verify' student.pk %}">{% csrf_token %}<button class="button" type="submit">Verify registration</button></form>{% endif %}
     {% if student.verification_status != "rejected" %}<form method="post" action="{% url 'students:reject' student.pk %}">{% csrf_token %}<button class="button danger" type="submit">Reject registration</button></form>{% endif %}
-    {% if student.student_type == "non_cafeteria" and student.bank_details_status == "pending" %}<form method="post" action="{% url 'students:review_bank' student.pk 'approve' %}">{% csrf_token %}<button class="button" type="submit">Approve bank details</button></form><form method="post" action="{% url 'students:review_bank' student.pk 'reject' %}">{% csrf_token %}<button class="button danger" type="submit">Reject bank details</button></form>{% endif %}
-    <form method="post" action="{% url 'students:toggle_exempt' student.pk %}">{% csrf_token %}<button class="button secondary" type="submit">{% if student.cafeteria_exempt %}Remove exemption{% else %}Exempt from cafeteria{% endif %}</button></form>
+    {% if student.bank_details_status == "pending" %}<form method="post" action="{% url 'students:review_bank' student.pk 'approve' %}">{% csrf_token %}<button class="button" type="submit">Approve bank details</button></form><form method="post" action="{% url 'students:review_bank' student.pk 'reject' %}">{% csrf_token %}<button class="button danger" type="submit">Reject bank details</button></form>{% endif %}
   </div>
 </section>
 {% endblock %}

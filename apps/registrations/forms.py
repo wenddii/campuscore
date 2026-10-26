@@ -5,8 +5,9 @@ from apps.students.models import Student
 
 
 class StudentRegistrationForm(forms.ModelForm):
-    photo = forms.ImageField(required=False)
-    bank_book_photo = forms.ImageField(required=False)
+    bank_account_number = forms.CharField(max_length=50, required=True)
+    bank_book_photo = forms.ImageField(required=True)
+    confirmation_name = forms.CharField(max_length=150, required=True)
     information_confirmed = forms.BooleanField(
         required=True,
         label=(
@@ -20,10 +21,8 @@ class StudentRegistrationForm(forms.ModelForm):
         fields = [
             "student_id",
             "full_name",
-            "photo",
             "department",
             "academic_year",
-            "student_type",
             "bank_account_number",
             "bank_book_photo",
             "confirmation_name",
@@ -46,8 +45,6 @@ class StudentRegistrationForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
 
-        student_type = cleaned_data.get("student_type")
-        photo = cleaned_data.get("photo")
         bank_account_number = cleaned_data.get("bank_account_number")
         bank_book_photo = cleaned_data.get("bank_book_photo")
         confirmation_name = cleaned_data.get("confirmation_name")
@@ -61,35 +58,15 @@ class StudentRegistrationForm(forms.ModelForm):
                     "Enter your full name as written above to confirm.",
                 )
 
-        if student_type == Student.StudentType.CAFETERIA:
-            if not photo:
-                self.add_error(
-                    "photo",
-                    "A student photo is required for cafeteria registration.",
-                )
-            if bank_account_number or bank_book_photo:
-                self.add_error(
-                    "student_type",
-                    "Cafeteria students must not submit bank details.",
-                )
-            cleaned_data["bank_account_number"] = None
-            cleaned_data["bank_book_photo"] = None
-        elif student_type == Student.StudentType.NON_CAFETERIA:
-            if photo:
-                self.add_error(
-                    "student_type",
-                    "Non-cafeteria students must not submit a student photo.",
-                )
-            if not bank_account_number:
-                self.add_error(
-                    "bank_account_number",
-                    "Bank account number is required for non-cafeteria registration.",
-                )
-            if not bank_book_photo:
-                self.add_error(
-                    "bank_book_photo",
-                    "Upload a clear bank book photo for non-cafeteria registration.",
-                )
-            cleaned_data["photo"] = None
+        if not bank_account_number:
+            self.add_error(
+                "bank_account_number",
+                "Bank account number is required.",
+            )
+        if not bank_book_photo:
+            self.add_error(
+                "bank_book_photo",
+                "Upload a clear bank book photo.",
+            )
 
         return cleaned_data
