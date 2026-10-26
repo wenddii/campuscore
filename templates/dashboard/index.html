@@ -45,7 +45,7 @@
 </div>
 
 <section class="card print-section">
-  <div class="section-heading"><h2>Student registrations</h2><button class="button no-print print-button" type="button" onclick="window.print()">Print</button></div>
+  <div class="section-heading"><h2>Student registrations</h2><a class="button no-print" href="{% url 'students:export_csv' %}{% if export_query %}?{{ export_query }}{% endif %}">Export CSV</a></div>
   <div class="table-wrap"><table><thead><tr><th>Student ID</th><th>Full name</th><th>Department</th><th>Academic year</th><th>Registration verification</th><th>Bank details</th><th class="no-print">Actions</th></tr></thead>
   <tbody>{% for student in students %}<tr><td><a href="{% url 'students:detail' student.pk %}?next={{ request.get_full_path|urlencode }}">{{ student.student_id }}</a></td><td>{{ student.full_name }}</td><td>{{ student.department }}</td><td>{{ student.get_academic_year_display }}</td><td><span class="badge {{ student.verification_status }}">{{ student.get_verification_status_display }}</span></td><td><span class="badge {{ student.bank_details_status }}">{{ student.get_bank_details_status_display }}</span></td><td class="no-print">{% if student.verification_status == "verified" and student.bank_details_status == "verified" %}<span class="muted">Approved</span>{% else %}<form class="inline-form" method="post" action="{% url 'students:approve' student.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="button approve-button" type="submit">Approve</button></form>{% endif %} <a href="{% url 'students:edit' student.pk %}?next={{ request.get_full_path|urlencode }}">Edit</a></td></tr>{% empty %}<tr><td colspan="7">No students match your filters.</td></tr>{% endfor %}</tbody></table></div>
   {% if page_obj.paginator.num_pages > 1 %}
@@ -58,7 +58,7 @@
 </section>
 
 <section class="card print-section">
-  <div class="section-heading"><h2>Department overview</h2><button class="button no-print print-button" type="button" onclick="window.print()">Print</button></div>
+  <div class="section-heading"><h2>Department overview</h2><a class="button no-print" href="{% url 'students:export_csv' %}{% if export_query %}?{{ export_query }}{% endif %}">Export CSV</a></div>
   <div class="table-wrap"><table><thead><tr><th>Department</th><th>Total registered</th><th>Pending registrations</th><th>Verified registrations</th><th>Rejected registrations</th><th>Pending bank reviews</th></tr></thead>
   <tbody>{% for department in departments %}<tr><td><a href="{{ department.filter_url }}">{{ department.name }}</a></td><td>{{ department.total_students }}</td><td>{{ department.pending_students }}</td><td>{{ department.verified_students }}</td><td>{{ department.rejected_students }}</td><td>{{ department.pending_bank_reviews }}</td></tr>{% empty %}<tr><td colspan="6">No departments available.</td></tr>{% endfor %}</tbody></table></div>
 </section>

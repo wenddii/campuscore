@@ -1,4 +1,5 @@
 from io import BytesIO
+import csv
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -115,6 +116,91 @@ class StudentManagementTests(TestCase):
         self.assertRedirects(response, reverse("students:detail", args=[student.pk]))
         self.assertFalse(student.information_confirmed)
         self.assertEqual(student.verification_status, Student.VerificationStatus.PENDING)
+
+
+class StudentCsvExportTests(TestCase):
+    def setUp(self):
+        self.owner = get_user_model().objects.create_user(
+            username="csv-owner",
+            password="correct-password",
+            is_staff=True,
+        )
+        self.department = Department.objects.create(
+            name="Data Science",
+            program_duration=4,
+        )
+        self.other_department = Department.objects.create(
+            name="Law",
+            program_duration=4,
+        )
+        self.client.force_login(self.owner)
+
+    def create_student(self, student_id, department, name, account):
+        return Student.objects.create(
+            student_id=student_id,
+            full_name=name,
+            department=department,
+            academic_year="1",
+            bank_account_number=account,
+        )
+
+    def student_data(self, **overrides):
+        data = {
+            "student_id": "ENG-001",
+            "full_name": "Managed Student",
+            "department": self.department.pk,
+            "academic_year": "1",
+            "bank_account_number": "900001",
+        }
+        data.update(overrides)
+        return data
+
+    def test_csv_export_has_exact_columns_and_all_matching_records(self):
+        self.create_student("DS-001", self.department, "Amina", "100001")
+        self.create_student("DS-002", self.department, "Bekele", "100002")
+        self.create_student("LAW-001", self.other_department, "Chala", "100003")
+
+        response = self.client.get(
+            reverse("students:export_csv"),
+            {
+                "department": self.department.pk,
+                "status": Student.VerificationStatus.PENDING,
+                "q": "DS",
+                "page": 2,
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv; charset=utf-8")
+        self.assertIn("attachment;", response["Content-Disposition"])
+        rows = list(csv.reader(response.content.decode("utf-8").splitlines()))
+        self.assertEqual(
+            rows[0],
+            ["Student Name", "Department", "Bank Account Number"],
+        )
+        self.assertEqual(len(rows), 3)
+        self.assertEqual({row[0] for row in rows[1:]}, {"Amina", "Bekele"})
+        self.assertNotIn("Chala", response.content.decode("utf-8"))
+        self.assertNotIn("<html", response.content.decode("utf-8"))
+
+    def test_csv_export_neutralizes_formula_values(self):
+        self.create_student(
+            "DS-003",
+            self.department,
+            "=Injected",
+            "+100004",
+        )
+        response = self.client.get(reverse("students:export_csv"))
+        rows = list(csv.reader(response.content.decode("utf-8").splitlines()))
+        self.assertEqual(rows[1][0], "'=Injected")
+        self.assertEqual(rows[1][2], "'+100004")
+
+    def test_unauthorized_users_cannot_export_csv(self):
+        self.client.logout()
+        response = self.client.get(reverse("students:export_csv"))
+        self.assertRedirects(
+            response,
+            f"{reverse('login')}?next={reverse('students:export_csv')}",
+        )
 
     def test_duplicate_student_id_is_rejected(self):
         Student.objects.create(

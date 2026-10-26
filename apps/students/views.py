@@ -1,4 +1,5 @@
 from django.contrib import messages
+import csv
 from functools import wraps
 from urllib.parse import quote
 
@@ -7,6 +8,7 @@ from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import IntegrityError, transaction
 from django.db.models import Count, Q
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
@@ -47,6 +49,32 @@ def dashboard_queryset(request):
     if department_id.isdigit():
         students = students.filter(department_id=int(department_id))
     return students.order_by("-created_at")
+
+
+def _csv_value(value):
+    value = "" if value is None else str(value)
+    if value.startswith(("=", "+", "-", "@")):
+        return f"'{value}"
+    return value
+
+
+@staff_required
+def export_students_csv(request):
+    response = HttpResponse(content_type="text/csv; charset=utf-8")
+    response["Content-Disposition"] = (
+        'attachment; filename="campuscore_students.csv"'
+    )
+    writer = csv.writer(response)
+    writer.writerow(["Student Name", "Department", "Bank Account Number"])
+    for student in dashboard_queryset(request).iterator():
+        writer.writerow(
+            [
+                _csv_value(student.full_name),
+                _csv_value(student.department.name),
+                _csv_value(student.bank_account_number),
+            ]
+        )
+    return response
 
 
 @staff_required
@@ -117,6 +145,7 @@ def dashboard(request):
         "selected_status": selected_status,
         "selected_bank_status": selected_bank_status,
         "pagination_query": pagination_query,
+        "export_query": pagination_query,
         "verification_choices": Student.VerificationStatus.choices,
         "bank_status_choices": Student.BankDetailsStatus.choices,
         "total_count": Student.objects.count(),
