@@ -1,4 +1,3 @@
-
 from pathlib import Path
 import os
 
@@ -23,8 +22,11 @@ SECRET_KEY = os.getenv("DJANGO_SECRET_KEY")
 
 DEBUG = os.getenv("DJANGO_DEBUG", "True").lower() == "true"
 
-ALLOWED_HOSTS = ['campuscore-ochre.vercel.app', 'localhost', '127.0.0.1']
-
+ALLOWED_HOSTS = [
+    "campuscore-ochre.vercel.app",
+    "localhost",
+    "127.0.0.1",
+]
 
 
 # --------------------------------------------------
@@ -39,12 +41,18 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
 
+    # Cloudinary image storage
+    "cloudinary_storage",
+    "cloudinary",
+
+    # CampusCore apps
     "apps.accounts.apps.AccountsConfig",
     "apps.students.apps.StudentsConfig",
     "apps.registrations.apps.RegistrationsConfig",
 ]
 
 AUTH_USER_MODEL = "accounts.User"
+
 LOGIN_REDIRECT_URL = "/dashboard/"
 LOGOUT_REDIRECT_URL = "/login/"
 LOGIN_URL = "/login/"
@@ -113,6 +121,41 @@ DATABASES = {
 
 
 # --------------------------------------------------
+# CLOUDINARY — MEDIA STORAGE
+# --------------------------------------------------
+
+CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME")
+CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY")
+CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET")
+
+if not all([
+    CLOUDINARY_CLOUD_NAME,
+    CLOUDINARY_API_KEY,
+    CLOUDINARY_API_SECRET,
+]):
+    raise ValueError(
+        "Cloudinary credentials are missing. "
+        "Check CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, "
+        "and CLOUDINARY_API_SECRET in your .env file."
+    )
+
+CLOUDINARY_STORAGE = {
+    "CLOUD_NAME": CLOUDINARY_CLOUD_NAME,
+    "API_KEY": CLOUDINARY_API_KEY,
+    "API_SECRET": CLOUDINARY_API_SECRET,
+}
+
+STORAGES = {
+    "default": {
+        "BACKEND": "cloudinary_storage.storage.MediaCloudinaryStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
+
+# --------------------------------------------------
 # PASSWORD VALIDATION
 # --------------------------------------------------
 
@@ -127,6 +170,12 @@ AUTH_PASSWORD_VALIDATORS = [
         "NAME": (
             "django.contrib.auth.password_validation."
             "MinimumLengthValidator"
+        ),
+    },
+    {
+        "NAME": (
+            "django.contrib.auth.password_validation."
+            "CommonPasswordValidator"
         ),
     },
     {
@@ -157,15 +206,12 @@ USE_TZ = True
 
 
 # --------------------------------------------------
-# STATIC AND MEDIA FILES
+# STATIC FILES
 # --------------------------------------------------
 
-STATIC_URL = "static/"
+STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 STATICFILES_DIRS = [BASE_DIR / "static"]
-
-MEDIA_URL = "media/"
-MEDIA_ROOT = BASE_DIR / "media"
 
 
 # --------------------------------------------------
