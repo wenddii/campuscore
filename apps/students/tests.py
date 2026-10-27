@@ -8,6 +8,7 @@ from django.urls import reverse
 from PIL import Image
 
 from .models import Department, Student
+from apps.registrations.models import RegistrationSettings
 
 
 def image_upload(name="bank-book.png"):
@@ -67,6 +68,65 @@ class DashboardFilteringTests(TestCase):
         self.assertNotContains(response, "BUS-001")
         self.assertEqual(response.context["page_obj"].paginator.count, 1)
 
+    def test_academic_year_and_department_filters_alone_and_combined(self):
+        Student.objects.create(
+            student_id="CS-002",
+            full_name="Computer Year 2",
+            department=self.department,
+            academic_year="2",
+            bank_account_number="100003",
+        )
+        Student.objects.create(
+            student_id="BUS-002",
+            full_name="Business Year 2",
+            department=self.other_department,
+            academic_year="2",
+            bank_account_number="100004",
+        )
+
+        # Academic year alone: Year 2
+        response_year = self.client.get(
+            reverse("students:dashboard"),
+            {"academic_year": "2"},
+        )
+        self.assertContains(response_year, "CS-002")
+        self.assertContains(response_year, "BUS-002")
+        self.assertNotContains(response_year, "CS-001")
+        self.assertEqual(response_year.context["page_obj"].paginator.count, 2)
+
+        # Department alone: Computer Science
+        response_dept = self.client.get(
+            reverse("students:dashboard"),
+            {"department": self.department.pk},
+        )
+        self.assertContains(response_dept, "CS-001")
+        self.assertContains(response_dept, "CS-002")
+        self.assertNotContains(response_dept, "BUS-001")
+        self.assertNotContains(response_dept, "BUS-002")
+        self.assertEqual(response_dept.context["page_obj"].paginator.count, 2)
+
+        # Combined: Computer Science + Year 2
+        response_combined = self.client.get(
+            reverse("students:dashboard"),
+            {
+                "department": self.department.pk,
+                "academic_year": "2",
+            },
+        )
+        self.assertContains(response_combined, "CS-002")
+        self.assertNotContains(response_combined, "CS-001")
+        self.assertNotContains(response_combined, "BUS-001")
+        self.assertNotContains(response_combined, "BUS-002")
+        self.assertEqual(response_combined.context["page_obj"].paginator.count, 1)
+
+        # Preserved in pagination and export query
+        self.assertIn("academic_year=2", response_combined.context["pagination_query"])
+        self.assertIn(f"department={self.department.pk}", response_combined.context["pagination_query"])
+        self.assertEqual(
+            response_combined.context["pagination_query"],
+            response_combined.context["export_query"],
+        )
+
     def test_all_departments_and_overview_counts(self):
         response = self.client.get(reverse("students:dashboard"))
         self.assertContains(response, "CS-001")
@@ -79,6 +139,37 @@ class DashboardFilteringTests(TestCase):
         self.assertEqual(overview.total_students, 1)
         self.assertEqual(overview.pending_students, 1)
         self.assertEqual(overview.pending_bank_reviews, 1)
+
+    def test_staff_can_close_and_reopen_registration(self):
+        response = self.client.post(reverse("students:toggle_registration"))
+        self.assertRedirects(response, reverse("students:dashboard"))
+        self.assertFalse(RegistrationSettings.get_settings().registration_open)
+
+        response = self.client.post(reverse("students:toggle_registration"))
+        self.assertRedirects(response, reverse("students:dashboard"))
+        self.assertTrue(RegistrationSettings.get_settings().registration_open)
+
+    def test_students_cannot_change_registration_state(self):
+        self.client.logout()
+        response = self.client.post(reverse("students:toggle_registration"))
+        self.assertRedirects(
+            response,
+            f"{reverse('login')}?next={reverse('students:toggle_registration')}",
+        )
+
+    def test_authenticated_student_cannot_access_dashboard_or_controls(self):
+        student_user = get_user_model().objects.create_user(
+            username="student-user",
+            password="student-password",
+            is_staff=False,
+        )
+        self.client.force_login(student_user)
+
+        dashboard_response = self.client.get(reverse("students:dashboard"))
+        toggle_response = self.client.post(reverse("students:toggle_registration"))
+
+        self.assertEqual(dashboard_response.status_code, 403)
+        self.assertEqual(toggle_response.status_code, 403)
 
 
 class StudentManagementTests(TestCase):
@@ -181,6 +272,43 @@ class StudentCsvExportTests(TestCase):
         self.assertEqual({row[0] for row in rows[1:]}, {"Amina", "Bekele"})
         self.assertNotIn("Chala", response.content.decode("utf-8"))
         self.assertNotIn("<html", response.content.decode("utf-8"))
+
+    def test_csv_export_filters_by_academic_year_and_department(self):
+        Student.objects.create(
+            student_id="DS-Y1",
+            full_name="DS Year 1",
+            department=self.department,
+            academic_year="1",
+            bank_account_number="200001",
+        )
+        Student.objects.create(
+            student_id="DS-Y2",
+            full_name="DS Year 2",
+            department=self.department,
+            academic_year="2",
+            bank_account_number="200002",
+        )
+        Student.objects.create(
+            student_id="LAW-Y2",
+            full_name="Law Year 2",
+            department=self.other_department,
+            academic_year="2",
+            bank_account_number="200003",
+        )
+
+        # Export with both department and academic_year
+        response = self.client.get(
+            reverse("students:export_csv"),
+            {
+                "department": self.department.pk,
+                "academic_year": "2",
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        rows = list(csv.reader(response.content.decode("utf-8").splitlines()))
+        self.assertEqual(len(rows), 2)  # header + 1 student
+        self.assertEqual(rows[1][0], "DS Year 2")
+        self.assertEqual(rows[1][1], self.department.name)
 
     def test_csv_export_neutralizes_formula_values(self):
         self.create_student(

@@ -71,3 +71,21 @@ class Registration(models.Model):
 
     def __str__(self):
         return f"{self.student.student_id} - {self.academic_year}"
+
+
+class RegistrationSettings(models.Model):
+    registration_open = models.BooleanField(default=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Registration setting"
+        verbose_name_plural = "Registration settings"
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def get_settings(cls):
+        registration_settings, _ = cls.objects.get_or_create(pk=1)
+        return registration_settings

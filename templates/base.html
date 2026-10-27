@@ -11,9 +11,7 @@
   <header class="topbar">
     <a class="brand" href="{% url 'registrations:register' %}">CampusCore</a>
     {% if request.user.is_authenticated %}
-      <nav><a href="{% url 'students:dashboard' %}">Dashboard</a><form class="inline-form" method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit" class="link-button">Log out</button></form></nav>
-    {% else %}
-      <nav><a href="{% url 'login' %}">Owner login</a></nav>
+      <nav>{% if request.user.is_staff %}<a href="{% url 'students:dashboard' %}">Dashboard</a>{% endif %}<form class="inline-form" method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit" class="link-button">Log out</button></form></nav>
     {% endif %}
   </header>
   <main class="container">

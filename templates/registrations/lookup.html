@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Check registration | CampusCore{% endblock %}
+{% block content %}
+<a href="{% url 'registrations:register' %}">&larr; Back to registration</a>
+
+{% if student %}
+<section class="card narrow">
+  <h1>Submitted registration details</h1>
+  <p class="muted">Review the registration information on file for your Student ID.</p>
+
+  <dl class="details">
+    <dt>Student ID</dt>
+    <dd>{{ student.student_id }}</dd>
+
+    <dt>Full name</dt>
+    <dd>{{ student.full_name }}</dd>
+
+    <dt>Department</dt>
+    <dd>{{ student.department.name }}</dd>
+
+    <dt>Academic year</dt>
+    <dd>{{ student.get_academic_year_display }}</dd>
+
+    <dt>Bank account number</dt>
+    <dd>{{ student.bank_account_number }}</dd>
+
+    <dt>Registration status</dt>
+    <dd>
+      <span class="badge {{ student.verification_status }}">
+        {{ student.get_verification_status_display }}
+      </span>
+    </dd>
+
+    <dt>Bank details verification status</dt>
+    <dd>
+      <span class="badge {{ student.bank_details_status }}">
+        {{ student.get_bank_details_status_display }}
+      </span>
+    </dd>
+
+    {% if submission_date %}
+    <dt>Submission date</dt>
+    <dd>{{ submission_date|date:"F j, Y, g:i a" }}</dd>
+    {% endif %}
+  </dl>
+
+  <div class="message" style="margin-top: 1.5rem; background: #f8fafc; border: 1px solid #cbd5e1; color: #334155;">
+    Please verify that your bank account number is correct. If any information is incorrect, contact the administration to request a correction. You cannot edit your submission yourself.
+  </div>
+
+  <div class="actions">
+    <a class="button secondary" href="{% url 'registrations:lookup' %}">Check another Student ID</a>
+    <a class="button secondary" href="{% url 'registrations:register' %}">&larr; Back to registration</a>
+  </div>
+</section>
+{% else %}
+<section class="card narrow">
+  <h1>Check your registration</h1>
+  <p class="muted">Enter your Student ID to check your submitted registration and bank details status.</p>
+  {% if error_message %}<div class="errors" style="margin-bottom: 1rem;">{{ error_message }}</div>{% endif %}
+  {% if form.non_field_errors %}<div class="errors">{{ form.non_field_errors }}</div>{% endif %}
+  <form method="post">
+    {% csrf_token %}
+    <div class="field" style="margin-bottom: 1rem;">
+      <label for="{{ form.student_id.id_for_label }}">Student ID</label>
+      {{ form.student_id }}
+      {% for error in form.student_id.errors %}<div class="error">{{ error }}</div>{% endfor %}
+    </div>
+    <div class="actions">
+      <button class="button" type="submit">Check My Information</button>
+      <a class="button secondary" href="{% url 'registrations:register' %}">Cancel</a>
+    </div>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

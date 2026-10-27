@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Registration
+from .models import Registration, RegistrationSettings
 
 
 @admin.register(Registration)
@@ -31,3 +31,12 @@ class RegistrationAdmin(admin.ModelAdmin):
         "created_at",
         "updated_at",
     )
+
+
+@admin.register(RegistrationSettings)
+class RegistrationSettingsAdmin(admin.ModelAdmin):
+    list_display = ("registration_open", "updated_at")
+    readonly_fields = ("updated_at",)
+
+    def has_add_permission(self, request):
+        return not RegistrationSettings.objects.exists()

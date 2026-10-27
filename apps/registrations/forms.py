@@ -4,6 +4,18 @@ from django import forms
 from apps.students.models import Student
 
 
+class StudentLookupForm(forms.Form):
+    student_id = forms.CharField(
+        max_length=30,
+        required=True,
+        label="Student ID",
+        widget=forms.TextInput(attrs={"placeholder": "e.g. STU-001"}),
+    )
+
+    def clean_student_id(self):
+        return self.cleaned_data["student_id"].strip()
+
+
 class StudentRegistrationForm(forms.ModelForm):
     bank_account_number = forms.CharField(max_length=50, required=True)
     bank_book_photo = forms.ImageField(required=True)

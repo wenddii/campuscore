@@ -20,6 +20,7 @@ from .forms import (
 )
 from .models import Student
 from .models import Department
+from apps.registrations.models import RegistrationSettings
 
 
 def staff_required(view):
@@ -38,6 +39,7 @@ def dashboard_queryset(request):
     status = request.GET.get("status", "")
     bank_status = request.GET.get("bank_status", "")
     department_id = request.GET.get("department", "")
+    academic_year = request.GET.get("academic_year", "")
     if query:
         students = students.filter(
             Q(student_id__icontains=query) | Q(full_name__icontains=query)
@@ -48,6 +50,8 @@ def dashboard_queryset(request):
         students = students.filter(bank_details_status=bank_status)
     if department_id.isdigit():
         students = students.filter(department_id=int(department_id))
+    if academic_year in Student.AcademicYear.values:
+        students = students.filter(academic_year=academic_year)
     return students.order_by("-created_at")
 
 
@@ -93,6 +97,12 @@ def dashboard(request):
         ).first()
         if selected_department is None:
             selected_department_id = ""
+    selected_academic_year = request.GET.get("academic_year", "")
+    if selected_academic_year not in Student.AcademicYear.values:
+        selected_academic_year = ""
+    selected_academic_year_display = dict(Student.AcademicYear.choices).get(
+        selected_academic_year, ""
+    )
 
     all_filter_params = request.GET.copy()
     all_filter_params.pop("page", None)
@@ -144,6 +154,9 @@ def dashboard(request):
         "selected_department_id": selected_department_id,
         "selected_status": selected_status,
         "selected_bank_status": selected_bank_status,
+        "selected_academic_year": selected_academic_year,
+        "selected_academic_year_display": selected_academic_year_display,
+        "academic_year_choices": Student.AcademicYear.choices,
         "pagination_query": pagination_query,
         "export_query": pagination_query,
         "verification_choices": Student.VerificationStatus.choices,
@@ -162,12 +175,31 @@ def dashboard(request):
             bank_details_status=Student.BankDetailsStatus.PENDING,
         ).count(),
         "register_url": reverse("students:register"),
+        "registration_settings": RegistrationSettings.get_settings(),
     }
     return render(request, "dashboard/index.html", context)
 
 
 @staff_required
+@require_POST
+def toggle_registration(request):
+    registration_settings = RegistrationSettings.get_settings()
+    registration_settings.registration_open = not registration_settings.registration_open
+    registration_settings.save(update_fields=["registration_open", "updated_at"])
+    state = "opened" if registration_settings.registration_open else "closed"
+    messages.success(request, f"Student registration {state}.")
+    return redirect("students:dashboard")
+
+
+@staff_required
 def register_student(request):
+    if not RegistrationSettings.get_settings().registration_open:
+        messages.error(
+            request,
+            "Registration is closed. Reopen registration before adding a new student.",
+        )
+        return redirect("students:dashboard")
+
     if request.method == "POST":
         form = OwnerStudentCreateForm(request.POST, request.FILES)
         if form.is_valid():

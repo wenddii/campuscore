@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Owner dashboard | CampusCore{% endblock %}
 {% block content %}
-<div class="page-heading"><div><h1>Owner dashboard</h1><p class="muted">Review student registrations and bank details.</p></div><a class="button no-print" href="{% url 'students:register' %}">Register student</a></div>
+<div class="page-heading"><div><h1>Owner dashboard</h1><p class="muted">Review student registrations and bank details.</p></div><div class="no-print"><a class="button" href="{% url 'students:register' %}">Register student</a><form class="inline-form" method="post" action="{% url 'students:toggle_registration' %}">{% csrf_token %}<button class="button" type="submit">{% if registration_settings.registration_open %}Close Registration{% else %}Open Registration{% endif %}</button></form></div></div>
 <div class="stats">
   <div class="stat"><strong>{{ total_count }}</strong><span>Total students</span></div>
   <div class="stat"><strong>{{ pending_count }}</strong><span>Pending</span></div>
@@ -18,6 +18,12 @@
       <select name="department">
         <option value="">All Departments</option>
         {% for department in departments %}<option value="{{ department.pk }}" {% if selected_department_id == department.pk|stringformat:"s" %}selected{% endif %}>{{ department.name }}</option>{% endfor %}
+      </select>
+    </label>
+    <label>Academic year
+      <select name="academic_year">
+        <option value="">All Academic Years</option>
+        {% for value,label in academic_year_choices %}<option value="{{ value }}" {% if selected_academic_year == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
       </select>
     </label>
     <label>Registration status
@@ -39,6 +45,7 @@
 <div class="selected-filters">
   <strong>Current view:</strong>
   {% if selected_department %}Department: {{ selected_department.name }}{% else %}All Departments{% endif %}
+  · Academic year: {% if selected_academic_year %}{{ selected_academic_year_display }}{% else %}All{% endif %}
   · Registration: {% if selected_status %}{{ selected_status|title }}{% else %}All{% endif %}
   · Bank details: {% if selected_bank_status %}{{ selected_bank_status|title }}{% else %}All{% endif %}
   {% if request.GET.q %} · Search: “{{ request.GET.q }}”{% endif %}

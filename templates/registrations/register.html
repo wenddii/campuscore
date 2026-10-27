@@ -2,8 +2,13 @@
 {% block title %}Student registration | CampusCore{% endblock %}
 {% block content %}
 <section class="card form-card">
-  <h1>Student registration</h1>
-  <p class="muted">Submit your student and bank details for university review.</p>
+  <div class="page-heading">
+    <div>
+      <h1>Student registration</h1>
+      <p class="muted">Submit your student and bank details for university review.</p>
+    </div>
+    <a class="button secondary" href="{% url 'registrations:lookup' %}">Already submitted? Check your information</a>
+  </div>
   {% if form.non_field_errors %}<div class="errors">{{ form.non_field_errors }}</div>{% endif %}
   <form method="post" enctype="multipart/form-data">
     {% csrf_token %}

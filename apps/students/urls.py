@@ -5,6 +5,7 @@ app_name = "students"
 
 urlpatterns = [
     path("", views.dashboard, name="dashboard"),
+    path("registration/toggle/", views.toggle_registration, name="toggle_registration"),
     path("students/export.csv", views.export_students_csv, name="export_csv"),
     path("students/register/", views.register_student, name="register"),
     path("students/<int:student_id>/", views.student_detail, name="detail"),
