@@ -3,7 +3,7 @@
 {% block content %}
 <a href="{{ dashboard_url }}">&larr; Back to dashboard</a>
 <section class="card detail">
-  <div class="detail-head"><div><h1>{{ student.full_name }}</h1><p>{{ student.student_id }} · {{ student.department }} · {{ student.get_academic_year_display }}</p><p><span class="badge {{ student.verification_status }}">{{ student.get_verification_status_display }}</span> <span class="badge {{ student.bank_details_status }}">{{ student.get_bank_details_status_display }}</span></p></div><a class="button no-print" href="{% url 'students:edit' student.pk %}?next={{ dashboard_url|urlencode }}">Edit student</a></div>
+  <div class="detail-head"><div><h1>{{ student.full_name }}</h1><p>{{ student.student_id }} · {{ student.department }} · {{ student.get_academic_year_display }}{% if student.section %} · {{ student.section.name }}{% endif %}</p><p><span class="badge {{ student.verification_status }}">{{ student.get_verification_status_display }}</span> <span class="badge {{ student.bank_details_status }}">{{ student.get_bank_details_status_display }}</span></p></div><a class="button no-print" href="{% url 'students:edit' student.pk %}?next={{ dashboard_url|urlencode }}">Edit student</a></div>
   <dl class="details"><dt>Submitted</dt><dd>{{ student.created_at }}</dd><dt>Bank account number</dt><dd>{{ student.bank_account_number }}</dd><dt>Bank review</dt><dd>{{ student.get_bank_details_status_display }}</dd><dt>Declaration</dt><dd>{{ student.confirmation_name }} ({{ student.confirmed_at }})</dd></dl>
   {% if student.bank_book_photo %}<p><a href="{{ student.bank_book_photo.url }}" target="_blank" rel="noopener">View bank book document</a></p>{% endif %}
   <div class="actions no-print">

@@ -21,6 +21,9 @@
     <dt>Academic year</dt>
     <dd>{{ student.get_academic_year_display }}</dd>
 
+    <dt>Section</dt>
+    <dd>{{ student.section.name|default:"—" }}</dd>
+
     <dt>Bank account number</dt>
     <dd>{{ student.bank_account_number }}</dd>
 

@@ -26,6 +26,12 @@
         {% for value,label in academic_year_choices %}<option value="{{ value }}" {% if selected_academic_year == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
       </select>
     </label>
+    <label>Section
+      <select name="section">
+        <option value="">All Sections</option>
+        {% for sec in available_sections %}<option value="{{ sec.pk }}" {% if selected_section_id == sec.pk|stringformat:"s" %}selected{% endif %}>{% if selected_department %}{{ sec.name }}{% else %}{{ sec.department.name }} - {{ sec.name }}{% endif %}</option>{% endfor %}
+      </select>
+    </label>
     <label>Registration status
       <select name="status">
         <option value="">All</option>
@@ -46,6 +52,7 @@
   <strong>Current view:</strong>
   {% if selected_department %}Department: {{ selected_department.name }}{% else %}All Departments{% endif %}
   · Academic year: {% if selected_academic_year %}{{ selected_academic_year_display }}{% else %}All{% endif %}
+  · Section: {% if selected_section %}{{ selected_section.name }}{% if not selected_department %} ({{ selected_section.department.name }}){% endif %}{% else %}All{% endif %}
   · Registration: {% if selected_status %}{{ selected_status|title }}{% else %}All{% endif %}
   · Bank details: {% if selected_bank_status %}{{ selected_bank_status|title }}{% else %}All{% endif %}
   {% if request.GET.q %} · Search: “{{ request.GET.q }}”{% endif %}
@@ -53,8 +60,8 @@
 
 <section class="card print-section">
   <div class="section-heading"><h2>Student registrations</h2><a class="button no-print" href="{% url 'students:export_csv' %}{% if export_query %}?{{ export_query }}{% endif %}">Export CSV</a></div>
-  <div class="table-wrap"><table><thead><tr><th>Student ID</th><th>Full name</th><th>Department</th><th>Academic year</th><th>Registration verification</th><th>Bank details</th><th class="no-print">Actions</th></tr></thead>
-  <tbody>{% for student in students %}<tr><td><a href="{% url 'students:detail' student.pk %}?next={{ request.get_full_path|urlencode }}">{{ student.student_id }}</a></td><td>{{ student.full_name }}</td><td>{{ student.department }}</td><td>{{ student.get_academic_year_display }}</td><td><span class="badge {{ student.verification_status }}">{{ student.get_verification_status_display }}</span></td><td><span class="badge {{ student.bank_details_status }}">{{ student.get_bank_details_status_display }}</span></td><td class="no-print">{% if student.verification_status == "verified" and student.bank_details_status == "verified" %}<span class="muted">Approved</span>{% else %}<form class="inline-form" method="post" action="{% url 'students:approve' student.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="button approve-button" type="submit">Approve</button></form>{% endif %} <a href="{% url 'students:edit' student.pk %}?next={{ request.get_full_path|urlencode }}">Edit</a></td></tr>{% empty %}<tr><td colspan="7">No students match your filters.</td></tr>{% endfor %}</tbody></table></div>
+  <div class="table-wrap"><table><thead><tr><th>Student ID</th><th>Full name</th><th>Department</th><th>Academic year</th><th>Section</th><th>Registration verification</th><th>Bank details</th><th class="no-print">Actions</th></tr></thead>
+  <tbody>{% for student in students %}<tr><td><a href="{% url 'students:detail' student.pk %}?next={{ request.get_full_path|urlencode }}">{{ student.student_id }}</a></td><td>{{ student.full_name }}</td><td>{{ student.department }}</td><td>{{ student.get_academic_year_display }}</td><td>{{ student.section.name|default:"—" }}</td><td><span class="badge {{ student.verification_status }}">{{ student.get_verification_status_display }}</span></td><td><span class="badge {{ student.bank_details_status }}">{{ student.get_bank_details_status_display }}</span></td><td class="no-print">{% if student.verification_status == "verified" and student.bank_details_status == "verified" %}<span class="muted">Approved</span>{% else %}<form class="inline-form" method="post" action="{% url 'students:approve' student.pk %}">{% csrf_token %}<input type="hidden" name="next" value="{{ request.get_full_path }}"><button class="button approve-button" type="submit">Approve</button></form>{% endif %} <a href="{% url 'students:edit' student.pk %}?next={{ request.get_full_path|urlencode }}">Edit</a></td></tr>{% empty %}<tr><td colspan="8">No students match your filters.</td></tr>{% endfor %}</tbody></table></div>
   {% if page_obj.paginator.num_pages > 1 %}
     <nav class="pagination no-print" aria-label="Student pages">
       {% if page_obj.has_previous %}<a href="?{% if pagination_query %}{{ pagination_query }}&{% endif %}page={{ page_obj.previous_page_number }}">Previous</a>{% endif %}

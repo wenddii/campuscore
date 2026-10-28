@@ -1,7 +1,7 @@
 
 from django import forms
 
-from apps.students.models import Student
+from apps.students.models import Section, Student
 
 
 class StudentLookupForm(forms.Form):
@@ -17,6 +17,11 @@ class StudentLookupForm(forms.Form):
 
 
 class StudentRegistrationForm(forms.ModelForm):
+    section = forms.ModelChoiceField(
+        queryset=Section.objects.select_related("department").all(),
+        required=False,
+        empty_label="Select section",
+    )
     bank_account_number = forms.CharField(max_length=50, required=True)
     bank_book_photo = forms.ImageField(required=True)
     confirmation_name = forms.CharField(max_length=150, required=True)
@@ -35,11 +40,27 @@ class StudentRegistrationForm(forms.ModelForm):
             "full_name",
             "department",
             "academic_year",
+            "section",
             "bank_account_number",
             "bank_book_photo",
             "confirmation_name",
             "information_confirmed",
         ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        department_id = None
+        if self.is_bound:
+            department_id = self.data.get("department")
+        elif self.instance and self.instance.pk and self.instance.department_id:
+            department_id = self.instance.department_id
+
+        if department_id and str(department_id).isdigit():
+            self.fields["section"].queryset = Section.objects.filter(
+                department_id=int(department_id)
+            )
+        else:
+            self.fields["section"].queryset = Section.objects.select_related("department").all()
 
     def clean_student_id(self):
         return self.cleaned_data["student_id"].strip()
@@ -56,6 +77,28 @@ class StudentRegistrationForm(forms.ModelForm):
 
     def clean(self):
         cleaned_data = super().clean()
+
+        department = cleaned_data.get("department")
+        section = cleaned_data.get("section")
+        if department:
+            if department.sections.exists():
+                if not section:
+                    self.add_error(
+                        "section",
+                        f"Please select a section for {department.name}.",
+                    )
+                elif section.department_id != department.id:
+                    self.add_error(
+                        "section",
+                        f"The selected section does not belong to {department.name}.",
+                    )
+            else:
+                if section:
+                    self.add_error(
+                        "section",
+                        f"{department.name} does not have sections. Leave this field empty.",
+                    )
+                    cleaned_data["section"] = None
 
         bank_account_number = cleaned_data.get("bank_account_number")
         bank_book_photo = cleaned_data.get("bank_book_photo")

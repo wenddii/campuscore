@@ -1,12 +1,23 @@
 
+import json
+
 from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 
-from apps.students.models import Student
+from apps.students.models import Department, Student
 from .forms import StudentLookupForm, StudentRegistrationForm
 from .models import Registration, RegistrationSettings
+
+
+def _get_department_sections_json():
+    departments = Department.objects.prefetch_related("sections").all()
+    sections_by_dept = {
+        str(dept.id): [{"id": s.id, "name": s.name} for s in dept.sections.all()]
+        for dept in departments
+    }
+    return json.dumps(sections_by_dept)
 
 
 def register_student(request):
@@ -34,7 +45,10 @@ def register_student(request):
                         return render(
                             request,
                             "registrations/register.html",
-                            {"form": form},
+                            {
+                                "form": form,
+                                "department_sections_json": _get_department_sections_json(),
+                            },
                             status=403,
                         )
                     student = form.save(commit=False)
@@ -83,7 +97,10 @@ def register_student(request):
     return render(
         request,
         "registrations/register.html",
-        {"form": form},
+        {
+            "form": form,
+            "department_sections_json": _get_department_sections_json(),
+        },
     )
 
 
@@ -100,7 +117,7 @@ def lookup_submission(request):
         if form.is_valid():
             student_id = form.cleaned_data["student_id"]
             student = (
-                Student.objects.select_related("department")
+                Student.objects.select_related("department", "section")
                 .filter(student_id__iexact=student_id)
                 .first()
             )
@@ -154,7 +171,7 @@ def submission_status(request):
         return redirect("registrations:lookup")
 
     student = get_object_or_404(
-        Student.objects.select_related("department"), pk=student_pk
+        Student.objects.select_related("department", "section"), pk=student_pk
     )
     registration = (
         student.registrations.order_by("-submitted_at", "-created_at").first()

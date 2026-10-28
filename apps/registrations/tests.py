@@ -27,9 +27,23 @@ class StudentRegistrationFormTests(TestCase):
             "full_name": "Test Student",
             "department": self.department.pk,
             "academic_year": "1",
+            "section": "A",
             "confirmation_name": "Test Student",
             "information_confirmed": "on",
         }
+
+    def test_registration_requires_section(self):
+        data = {
+            **self.common,
+            "bank_account_number": "123456",
+            "section": "",
+        }
+        form = StudentRegistrationForm(
+            data=data,
+            files={"bank_book_photo": image_upload("book.png")},
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn("section", form.errors)
 
     def test_registration_requires_bank_number_and_book(self):
         data = {
@@ -62,6 +76,7 @@ class RegistrationSeasonTests(TestCase):
             "full_name": "Test Student",
             "department": self.department.pk,
             "academic_year": "1",
+            "section": "A",
             "bank_account_number": "001234",
             "confirmation_name": "Test Student",
             "information_confirmed": "on",
@@ -144,6 +159,7 @@ class RegistrationSeasonTests(TestCase):
         self.assertContains(response, "Test Student")
         self.assertContains(response, "Computer Science")
         self.assertContains(response, "Year 1")
+        self.assertContains(response, "Section A")
         self.assertContains(response, "Pending Verification")
         self.assertContains(response, "Pending Review")
 

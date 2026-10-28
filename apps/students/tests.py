@@ -2,12 +2,14 @@ from io import BytesIO
 import csv
 
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import IntegrityError
 from django.test import TestCase
 from django.urls import reverse
 from PIL import Image
 
-from .models import Department, Student
+from .models import Department, Section, Student
 from apps.registrations.models import RegistrationSettings
 
 
@@ -127,6 +129,70 @@ class DashboardFilteringTests(TestCase):
             response_combined.context["export_query"],
         )
 
+    def test_section_filter_alone_and_combined(self):
+        cs_sec_a = Section.objects.create(department=self.department, name="Section A")
+        cs_sec_b = Section.objects.create(department=self.department, name="Section B")
+        bus_sec_a = Section.objects.create(department=self.other_department, name="Section A")
+
+        Student.objects.create(
+            student_id="CS-Y2-A",
+            full_name="CS Year 2 Section A",
+            department=self.department,
+            academic_year="2",
+            section=cs_sec_a,
+            bank_account_number="100010",
+        )
+        Student.objects.create(
+            student_id="CS-Y2-B",
+            full_name="CS Year 2 Section B",
+            department=self.department,
+            academic_year="2",
+            section=cs_sec_b,
+            bank_account_number="100011",
+        )
+        Student.objects.create(
+            student_id="BUS-Y2-A",
+            full_name="BUS Year 2 Section A",
+            department=self.other_department,
+            academic_year="2",
+            section=bus_sec_a,
+            bank_account_number="100012",
+        )
+
+        # Section alone: Section B
+        response_sec = self.client.get(
+            reverse("students:dashboard"),
+            {"section": cs_sec_b.pk},
+        )
+        self.assertContains(response_sec, "CS-Y2-B")
+        self.assertNotContains(response_sec, "CS-Y2-A")
+        self.assertNotContains(response_sec, "BUS-Y2-A")
+        self.assertEqual(response_sec.context["page_obj"].paginator.count, 1)
+
+        # Combined: Computer Science + Year 2 + Section A
+        response_all = self.client.get(
+            reverse("students:dashboard"),
+            {
+                "department": self.department.pk,
+                "academic_year": "2",
+                "section": cs_sec_a.pk,
+            },
+        )
+        self.assertContains(response_all, "CS-Y2-A")
+        self.assertNotContains(response_all, "CS-Y2-B")
+        self.assertNotContains(response_all, "BUS-Y2-A")
+        self.assertNotContains(response_all, "CS-001")
+        self.assertEqual(response_all.context["page_obj"].paginator.count, 1)
+
+        # Preserved in pagination and export query
+        self.assertIn(f"section={cs_sec_a.pk}", response_all.context["pagination_query"])
+        self.assertIn("academic_year=2", response_all.context["pagination_query"])
+        self.assertIn(f"department={self.department.pk}", response_all.context["pagination_query"])
+        self.assertEqual(
+            response_all.context["pagination_query"],
+            response_all.context["export_query"],
+        )
+
     def test_all_departments_and_overview_counts(self):
         response = self.client.get(reverse("students:dashboard"))
         self.assertContains(response, "CS-001")
@@ -207,6 +273,29 @@ class StudentManagementTests(TestCase):
         self.assertRedirects(response, reverse("students:detail", args=[student.pk]))
         self.assertFalse(student.information_confirmed)
         self.assertEqual(student.verification_status, Student.VerificationStatus.PENDING)
+
+    def test_owner_can_edit_student_section(self):
+        sec_a = Section.objects.create(department=self.department, name="Section A")
+        sec_b = Section.objects.create(department=self.department, name="Section B")
+        student = Student.objects.create(
+            **self.student_data(
+                department=self.department,
+                section=sec_a,
+            ),
+            bank_book_photo=image_upload("sec.png"),
+        )
+        response = self.client.post(
+            reverse("students:edit", args=[student.pk]),
+            {
+                **self.student_data(
+                    department=self.department.pk,
+                    section=sec_b.pk,
+                ),
+            },
+        )
+        self.assertRedirects(response, reverse("students:detail", args=[student.pk]))
+        student.refresh_from_db()
+        self.assertEqual(student.section, sec_b)
 
 
 class StudentCsvExportTests(TestCase):
@@ -309,6 +398,63 @@ class StudentCsvExportTests(TestCase):
         self.assertEqual(len(rows), 2)  # header + 1 student
         self.assertEqual(rows[1][0], "DS Year 2")
         self.assertEqual(rows[1][1], self.department.name)
+
+    def test_csv_export_filters_by_section_and_combined_filters(self):
+        sec_ds_a = Section.objects.create(department=self.department, name="A")
+        sec_ds_b = Section.objects.create(department=self.department, name="B")
+        sec_law_a = Section.objects.create(department=self.other_department, name="A")
+
+        Student.objects.create(
+            student_id="DS-Y2-A",
+            full_name="DS Year 2 Sec A",
+            department=self.department,
+            academic_year="2",
+            section=sec_ds_a,
+            bank_account_number="200010",
+        )
+        Student.objects.create(
+            student_id="DS-Y2-B",
+            full_name="DS Year 2 Sec B",
+            department=self.department,
+            academic_year="2",
+            section=sec_ds_b,
+            bank_account_number="200011",
+        )
+        Student.objects.create(
+            student_id="LAW-Y2-A",
+            full_name="Law Year 2 Sec A",
+            department=self.other_department,
+            academic_year="2",
+            section=sec_law_a,
+            bank_account_number="200012",
+        )
+
+        # Export combined: Data Science + Year 2 + Section A
+        response = self.client.get(
+            reverse("students:export_csv"),
+            {
+                "department": self.department.pk,
+                "academic_year": "2",
+                "section": sec_ds_a.pk,
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        rows = list(csv.reader(response.content.decode("utf-8").splitlines()))
+        self.assertEqual(rows[0], ["Student Name", "Department", "Bank Account Number"])
+        self.assertEqual(len(rows), 2)  # header + 1 record
+        self.assertEqual(rows[1][0], "DS Year 2 Sec A")
+        self.assertEqual(rows[1][1], self.department.name)
+        self.assertEqual(rows[1][2], "200010")
+
+        # Export section alone: Section B
+        response_b = self.client.get(
+            reverse("students:export_csv"),
+            {"section": sec_ds_b.pk},
+        )
+        rows_b = list(csv.reader(response_b.content.decode("utf-8").splitlines()))
+        self.assertEqual(rows_b[0], ["Student Name", "Department", "Bank Account Number"])
+        self.assertEqual(len(rows_b), 2)
+        self.assertEqual(rows_b[1][0], "DS Year 2 Sec B")
 
     def test_csv_export_neutralizes_formula_values(self):
         self.create_student(
@@ -490,4 +636,73 @@ class StudentCsvExportTests(TestCase):
             f"{reverse('login')}?next={reverse('students:update_status', args=[1])}",
         )
 
-# Create your tests here.
+
+class DepartmentSectionModelTests(TestCase):
+    def test_department_can_be_created_without_sections(self):
+        dept = Department.objects.create(name="Information Systems", program_duration=4)
+        self.assertEqual(dept.sections.count(), 0)
+
+    def test_department_can_have_multiple_sections(self):
+        dept = Department.objects.create(name="Computer Science", program_duration=4)
+        sec1 = Section.objects.create(department=dept, name="Section 1")
+        sec2 = Section.objects.create(department=dept, name="Section 2")
+        self.assertEqual(list(dept.sections.values_list("name", flat=True)), ["Section 1", "Section 2"])
+
+    def test_duplicate_section_name_within_same_department_rejected(self):
+        dept = Department.objects.create(name="Business", program_duration=4)
+        Section.objects.create(department=dept, name="Section A")
+        with self.assertRaises(IntegrityError):
+            Section.objects.create(department=dept, name="Section A")
+
+    def test_same_section_name_in_different_departments_allowed(self):
+        dept1 = Department.objects.create(name="Accounting", program_duration=4)
+        dept2 = Department.objects.create(name="Marketing", program_duration=4)
+        sec1 = Section.objects.create(department=dept1, name="Section A")
+        sec2 = Section.objects.create(department=dept2, name="Section A")
+        self.assertIsNotNone(sec1.pk)
+        self.assertIsNotNone(sec2.pk)
+        self.assertNotEqual(sec1.pk, sec2.pk)
+
+    def test_student_clean_requires_section_if_department_has_sections(self):
+        dept = Department.objects.create(name="Physics", program_duration=4)
+        Section.objects.create(department=dept, name="Lab 1")
+        student = Student(
+            student_id="PHY-001",
+            full_name="Physics Student",
+            department=dept,
+            academic_year="1",
+            bank_account_number="112233",
+            section=None,
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            student.clean()
+        self.assertIn("section", ctx.exception.message_dict)
+
+    def test_student_clean_allows_null_section_if_department_has_no_sections(self):
+        dept = Department.objects.create(name="Philosophy", program_duration=4)
+        student = Student(
+            student_id="PHIL-001",
+            full_name="Philosophy Student",
+            department=dept,
+            academic_year="1",
+            bank_account_number="112234",
+            section=None,
+        )
+        # Should not raise
+        student.clean()
+
+    def test_student_clean_rejects_section_belonging_to_another_department(self):
+        dept1 = Department.objects.create(name="Chemistry", program_duration=4)
+        dept2 = Department.objects.create(name="Biology", program_duration=4)
+        sec_bio = Section.objects.create(department=dept2, name="Bio Sec 1")
+        student = Student(
+            student_id="CHEM-001",
+            full_name="Chem Student",
+            department=dept1,
+            academic_year="1",
+            bank_account_number="112235",
+            section=sec_bio,
+        )
+        with self.assertRaises(ValidationError) as ctx:
+            student.clean()
+        self.assertIn("section", ctx.exception.message_dict)

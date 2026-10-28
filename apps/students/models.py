@@ -12,6 +12,27 @@ class Department(models.Model):
         return self.name
 
 
+class Section(models.Model):
+    department = models.ForeignKey(
+        Department,
+        on_delete=models.CASCADE,
+        related_name="sections",
+    )
+    name = models.CharField(max_length=50)
+
+    class Meta:
+        ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["department", "name"],
+                name="unique_department_section",
+            )
+        ]
+
+    def __str__(self):
+        return self.name
+
+
 class Student(models.Model):
     class AcademicYear(models.TextChoices):
         YEAR_1 = "1", "Year 1"
@@ -44,6 +65,14 @@ class Student(models.Model):
     academic_year = models.CharField(
         max_length=10,
         choices=AcademicYear.choices,
+    )
+
+    section = models.ForeignKey(
+        Section,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name="students",
     )
 
     bank_account_number = models.CharField(
@@ -102,6 +131,24 @@ class Student(models.Model):
                         f"{self.department.name} has a "
                         f"{self.department.program_duration}-year program. "
                         f"Year {year} is not valid for this department."
+                    )
+
+        # Validate the student's section based on department
+        if self.department_id:
+            dept_has_sections = self.department.sections.exists()
+            if dept_has_sections:
+                if not self.section_id:
+                    errors["section"] = (
+                        f"Section is required for {self.department.name}."
+                    )
+                elif self.section and self.section.department_id != self.department_id:
+                    errors["section"] = (
+                        f"The selected section does not belong to {self.department.name}."
+                    )
+            else:
+                if self.section_id:
+                    errors["section"] = (
+                        f"{self.department.name} does not have sections. Section must be left blank."
                     )
 
         if not self.bank_account_number or not self.bank_account_number.strip():

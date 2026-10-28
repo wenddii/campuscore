@@ -1,5 +1,10 @@
 from django.contrib import admin
-from .models import Department, Student
+from .models import Department, Section, Student
+
+
+class SectionInline(admin.TabularInline):
+    model = Section
+    extra = 0
 
 
 @admin.register(Department)
@@ -12,6 +17,21 @@ class DepartmentAdmin(admin.ModelAdmin):
 
     search_fields = ("name",)
     ordering = ("name",)
+    inlines = [SectionInline]
+
+
+@admin.register(Section)
+class SectionAdmin(admin.ModelAdmin):
+    list_display = (
+        "name",
+        "department",
+    )
+    list_filter = ("department",)
+    search_fields = (
+        "name",
+        "department__name",
+    )
+    ordering = ("department", "name")
 
 
 @admin.register(Student)
@@ -21,6 +41,7 @@ class StudentAdmin(admin.ModelAdmin):
         "full_name",
         "department",
         "academic_year",
+        "section",
         "information_confirmed",
         "verification_status",
         "bank_details_status",
@@ -34,6 +55,7 @@ class StudentAdmin(admin.ModelAdmin):
     list_filter = (
         "department",
         "academic_year",
+        "section",
         "information_confirmed",
         "verification_status",
         "bank_details_status",
@@ -52,6 +74,7 @@ class StudentAdmin(admin.ModelAdmin):
                 "full_name",
                 "department",
                 "academic_year",
+                "section",
             )
         }),
         ("Bank Details", {

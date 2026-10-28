@@ -18,9 +18,9 @@ from .forms import (
     OwnerStudentEditForm,
     VerificationStatusForm,
 )
-from .models import Student
-from .models import Department
+from .models import Department, Section, Student
 from apps.registrations.models import RegistrationSettings
+import json
 
 
 def staff_required(view):
@@ -34,12 +34,13 @@ def staff_required(view):
 
 
 def dashboard_queryset(request):
-    students = Student.objects.select_related("department").all()
+    students = Student.objects.select_related("department", "section").all()
     query = request.GET.get("q", "").strip()
     status = request.GET.get("status", "")
     bank_status = request.GET.get("bank_status", "")
     department_id = request.GET.get("department", "")
     academic_year = request.GET.get("academic_year", "")
+    section_id = request.GET.get("section", "")
     if query:
         students = students.filter(
             Q(student_id__icontains=query) | Q(full_name__icontains=query)
@@ -52,6 +53,8 @@ def dashboard_queryset(request):
         students = students.filter(department_id=int(department_id))
     if academic_year in Student.AcademicYear.values:
         students = students.filter(academic_year=academic_year)
+    if section_id.isdigit():
+        students = students.filter(section_id=int(section_id))
     return students.order_by("-created_at")
 
 
@@ -103,6 +106,23 @@ def dashboard(request):
     selected_academic_year_display = dict(Student.AcademicYear.choices).get(
         selected_academic_year, ""
     )
+    selected_section_id = request.GET.get("section", "")
+    selected_section = None
+    if selected_section_id.isdigit():
+        selected_section = Section.objects.select_related("department").filter(
+            pk=int(selected_section_id)
+        ).first()
+        if selected_section is None:
+            selected_section_id = ""
+
+    if selected_department:
+        available_sections = Section.objects.filter(
+            department=selected_department
+        ).order_by("name")
+    else:
+        available_sections = Section.objects.select_related("department").order_by(
+            "department__name", "name"
+        )
 
     all_filter_params = request.GET.copy()
     all_filter_params.pop("page", None)
@@ -157,6 +177,9 @@ def dashboard(request):
         "selected_academic_year": selected_academic_year,
         "selected_academic_year_display": selected_academic_year_display,
         "academic_year_choices": Student.AcademicYear.choices,
+        "selected_section": selected_section,
+        "selected_section_id": selected_section_id,
+        "available_sections": available_sections,
         "pagination_query": pagination_query,
         "export_query": pagination_query,
         "verification_choices": Student.VerificationStatus.choices,
@@ -189,6 +212,15 @@ def toggle_registration(request):
     state = "opened" if registration_settings.registration_open else "closed"
     messages.success(request, f"Student registration {state}.")
     return redirect("students:dashboard")
+
+
+def _get_department_sections_json():
+    departments = Department.objects.prefetch_related("sections").all()
+    sections_by_dept = {
+        str(dept.id): [{"id": s.id, "name": s.name} for s in dept.sections.all()]
+        for dept in departments
+    }
+    return json.dumps(sections_by_dept)
 
 
 @staff_required
@@ -230,6 +262,7 @@ def register_student(request):
             "page_title": "Register student",
             "owner_created": True,
             "cancel_url": reverse("students:dashboard"),
+            "department_sections_json": _get_department_sections_json(),
         },
     )
 
@@ -237,7 +270,7 @@ def register_student(request):
 @staff_required
 def student_detail(request, student_id):
     student = get_object_or_404(
-        Student.objects.select_related("department"), pk=student_id
+        Student.objects.select_related("department", "section"), pk=student_id
     )
     next_url = request.GET.get("next", "")
     if not next_url.startswith("/") or next_url.startswith("//"):
@@ -260,7 +293,9 @@ def student_detail(request, student_id):
 
 @staff_required
 def edit_student(request, student_id):
-    student = get_object_or_404(Student, pk=student_id)
+    student = get_object_or_404(
+        Student.objects.select_related("department", "section"), pk=student_id
+    )
     next_url = request.POST.get("next") or request.GET.get("next", "")
     if not next_url.startswith("/") or next_url.startswith("//"):
         next_url = reverse("students:detail", args=[student.pk])
@@ -296,6 +331,7 @@ def edit_student(request, student_id):
             "page_title": f"Edit {student.full_name}",
             "cancel_url": next_url,
             "next_url": next_url,
+            "department_sections_json": _get_department_sections_json(),
         },
     )
 

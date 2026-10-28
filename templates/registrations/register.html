@@ -23,4 +23,64 @@
     <button class="button" type="submit">Submit registration</button>
   </form>
 </section>
+{% if department_sections_json %}
+<script id="dept-sections-data" type="application/json">
+  {{ department_sections_json|safe }}
+</script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const deptSelect = document.getElementById("id_department");
+  const sectionSelect = document.getElementById("id_section");
+  const dataScript = document.getElementById("dept-sections-data");
+  if (!deptSelect || !sectionSelect || !dataScript) return;
+
+  const sectionsByDept = JSON.parse(dataScript.textContent);
+  const initialValue = sectionSelect.value;
+
+  function updateSections(preserveValue) {
+    const deptId = deptSelect.value;
+    const sections = (deptId && sectionsByDept[deptId]) ? sectionsByDept[deptId] : [];
+    const currentVal = preserveValue ? (sectionSelect.value || initialValue) : "";
+
+    sectionSelect.innerHTML = "";
+
+    if (!deptId) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "Select department first";
+      sectionSelect.appendChild(opt);
+      sectionSelect.disabled = true;
+    } else if (sections.length === 0) {
+      const opt = document.createElement("option");
+      opt.value = "";
+      opt.textContent = "No sections available (not required)";
+      sectionSelect.appendChild(opt);
+      sectionSelect.disabled = true;
+    } else {
+      sectionSelect.disabled = false;
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = "Select section";
+      sectionSelect.appendChild(placeholder);
+
+      sections.forEach(function(sec) {
+        const opt = document.createElement("option");
+        opt.value = sec.id;
+        opt.textContent = sec.name;
+        if (String(sec.id) === String(currentVal)) {
+          opt.selected = true;
+        }
+        sectionSelect.appendChild(opt);
+      });
+    }
+  }
+
+  deptSelect.addEventListener("change", function() {
+    updateSections(false);
+  });
+
+  updateSections(true);
+});
+</script>
+{% endif %}
 {% endblock %}
