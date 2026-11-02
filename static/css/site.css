@@ -17,3 +17,22 @@
   a{color:#000;text-decoration:none}
   .badge{background:none!important;color:#000}
 }
+.brand{display:flex;align-items:center;gap:.7rem;min-width:0}.university-logo{display:block;width:40px;height:40px;object-fit:cover;object-position:left center;background:#fff;border-radius:50%;padding:2px}.brand span{white-space:nowrap}.topbar{background:linear-gradient(110deg,#12345b,#1A365D 60%,#006b83);border-bottom:4px solid #29B6F6}.button{box-shadow:0 2px 6px #12345b22}.card{border:1px solid #dce8f0}.stat{border-top:3px solid #29B6F6}.table-wrap th{background:#1A365D;color:#fff}.table-wrap tr:nth-child(even){background:#f4f9fc}
+@media(max-width:700px){.brand span{white-space:normal;line-height:1.15}.university-logo{width:34px;height:34px}.topbar{padding-top:.75rem;padding-bottom:.75rem}}
+
+.registration-card{max-width:980px;margin:1.5rem auto;padding:clamp(1.25rem,3vw,2.5rem)}
+.registration-heading{align-items:flex-start;margin-bottom:1.75rem}
+.registration-heading h1{margin:.15rem 0 .4rem;color:#1A365D}
+.registration-notice{margin-bottom:1.75rem;padding:1rem 1.25rem;border-left:4px solid #29B6F6;border-radius:0 8px 8px 0;background:#eaf8fd;color:#1A365D;line-height:1.5}
+.registration-notice p{margin:.35rem 0 0}
+.registration-section{min-width:0;margin:0;padding:1.5rem 0;border:0;border-top:1px solid #dfe7ef}
+.registration-section legend{padding:0 .5rem 0 0;color:#1A365D;font-size:1.15rem;font-weight:800}
+.field{min-width:0}.field label{color:#1A365D;font-weight:700}.field-help{margin:.3rem 0;color:#64748b;font-size:.82rem;line-height:1.4}
+.required-label,.optional-label{display:inline-block;margin-left:.35rem;color:#b42318;font-size:.7rem;font-weight:700;letter-spacing:.03em;text-transform:uppercase;vertical-align:middle}.optional-label{color:#64748b}
+.live-feedback{min-height:1.25rem;color:#b42318;font-size:.82rem;line-height:1.35}.live-feedback:empty{min-height:0}.feedback-success{color:#1d8a57}
+.has-error input,.has-error select{border-color:#b42318;background:#fff8f7}.has-error input:focus,.has-error select:focus{outline-color:#b42318}.has-success input,.has-success select{border-color:#1d8a57}
+.file-details{padding:.65rem .8rem;border:1px solid #dfe7ef;border-radius:6px;background:#f8fbfd;color:#526174;font-size:.82rem;overflow-wrap:anywhere}
+.confirmation-section{margin-top:.25rem;padding:1.5rem;border:1px solid #b8e4f2;border-radius:8px;background:#f2fbfe}.confirmation-instruction{margin:0 0 1rem;color:#1A365D;line-height:1.5}.consent-field{display:grid;grid-template-columns:auto 1fr;column-gap:.6rem;align-items:start;margin-top:1rem;padding-top:1rem;border-top:1px solid #cfeef6}.consent-field input{width:1.15rem;height:1.15rem;margin:.1rem 0 0;accent-color:#0288D1}.consent-field .live-feedback{grid-column:2}
+.registration-actions{display:flex;align-items:center;justify-content:space-between;gap:1rem;padding-top:1.5rem}.required-note{margin:0;color:#64748b;font-size:.82rem}.submit-loading{display:none}.is-loading .submit-label{display:none}.is-loading .submit-loading{display:inline}.button:disabled{cursor:not-allowed;opacity:.65}
+.form-errors{margin-bottom:1rem;padding:.8rem 1rem;border:1px solid #f1b6b0;border-radius:6px;background:#fff8f7}
+@media(max-width:700px){.registration-heading,.registration-actions{align-items:stretch;flex-direction:column}.registration-heading .button{width:100%;text-align:center}.registration-card{padding:1.1rem}.registration-section{padding:1.25rem 0}.confirmation-section{padding:1.1rem}}

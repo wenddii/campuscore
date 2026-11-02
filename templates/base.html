@@ -4,12 +4,15 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>{% block title %}CampusCore{% endblock %}</title>
+  <title>{% block title %}Bahir Dar University{% endblock %}</title>
   <link rel="stylesheet" href="{% static 'css/site.css' %}">
 </head>
 <body>
   <header class="topbar">
-    <a class="brand" href="{% url 'registrations:register' %}">CampusCore</a>
+    <a class="brand" href="{% url 'registrations:register' %}">
+      <img class="university-logo" src="{% static 'images/bdulogo.jfif' %}" alt="Bahir Dar University logo" width="40" height="40">
+      <span>Bahir Dar University</span>
+    </a>
     {% if request.user.is_authenticated and request.resolver_match.namespace != "registrations" %}
       <nav>{% if request.user.is_staff %}<a href="{% url 'students:dashboard' %}">Dashboard</a>{% endif %}<form class="inline-form" method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit" class="link-button">Log out</button></form></nav>
     {% endif %}

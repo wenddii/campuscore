@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Owner dashboard | CampusCore{% endblock %}
+{% block title %}Owner dashboard | Bahir Dar University{% endblock %}
 {% block content %}
 <div class="page-heading"><div><h1>Owner dashboard</h1><p class="muted">Review student registrations and bank details.</p></div><div class="no-print"><a class="button" href="{% url 'students:register' %}">Register student</a><form class="inline-form" method="post" action="{% url 'students:toggle_registration' %}">{% csrf_token %}<button class="button" type="submit">{% if registration_settings.registration_open %}Close Registration{% else %}Open Registration{% endif %}</button></form></div></div>
 <div class="stats">

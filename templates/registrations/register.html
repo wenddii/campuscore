@@ -1,86 +1,194 @@
 {% extends "base.html" %}
-{% block title %}Student registration | CampusCore{% endblock %}
+{% block title %}Student registration | Bahir Dar University{% endblock %}
 {% block content %}
-<section class="card form-card">
-  <div class="page-heading">
+<section class="card form-card registration-card">
+  <div class="page-heading registration-heading">
     <div>
       <h1>Student registration</h1>
       <p class="muted">Submit your student and bank details for university review.</p>
     </div>
     <a class="button secondary" href="{% url 'registrations:lookup' %}">Already submitted? Check your information</a>
   </div>
-  {% if form.non_field_errors %}<div class="errors">{{ form.non_field_errors }}</div>{% endif %}
-  <form method="post" enctype="multipart/form-data">
+  <aside class="registration-notice" aria-label="Registration instructions">
+    <strong>Before you start</strong>
+    <p>Have your student information and bank book ready. Enter the correct 13-digit bank account number and upload a clear bank-book image. Submitted information cannot be edited by students; contact the administration if you find an error after submission.</p>
+  </aside>
+  {% if form.non_field_errors %}<div class="errors form-errors" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  <form id="registration-form" method="post" enctype="multipart/form-data" novalidate>
     {% csrf_token %}
-    <div class="grid two">
-      {% for field in form %}
-        <div class="field {% if field.name == 'information_confirmed' %}full{% endif %}">
-          {{ field.label_tag }}{{ field }}
-          {% for error in field.errors %}<div class="error">{{ error }}</div>{% endfor %}
-        </div>
-      {% endfor %}
-    </div>
-    <button class="button" type="submit">Submit registration</button>
+    <fieldset class="registration-section">
+      <legend>Student Information</legend>
+      <div class="grid two">
+        <div class="field" data-field="student_id"><label for="{{ form.student_id.id_for_label }}">Student ID <span class="required-label">Required</span></label><p class="field-help">Exactly 10 characters, starting with BDU. Example: BDU1508104.</p>{{ form.student_id }}<div class="live-feedback" data-feedback-for="student_id" aria-live="polite"></div>{% for error in form.student_id.errors %}<div class="error" role="alert">{{ error }}</div>{% endfor %}</div>
+        <div class="field" data-field="full_name"><label for="{{ form.full_name.id_for_label }}">Full name <span class="required-label">Required</span></label><p class="field-help">Enter your full name as it appears on your university records.</p>{{ form.full_name }}<div class="live-feedback" data-feedback-for="full_name" aria-live="polite"></div>{% for error in form.full_name.errors %}<div class="error" role="alert">{{ error }}</div>{% endfor %}</div>
+        <div class="field" data-field="department"><label for="{{ form.department.id_for_label }}">Department <span class="required-label">Required</span></label><p class="field-help">Choose the department for your current program.</p>{{ form.department }}<div class="live-feedback" data-feedback-for="department" aria-live="polite"></div>{% for error in form.department.errors %}<div class="error" role="alert">{{ error }}</div>{% endfor %}</div>
+        <div class="field" data-field="academic_year"><label for="{{ form.academic_year.id_for_label }}">Academic year <span class="required-label">Required</span></label><p class="field-help">Select your current year of study.</p>{{ form.academic_year }}<div class="live-feedback" data-feedback-for="academic_year" aria-live="polite"></div>{% for error in form.academic_year.errors %}<div class="error" role="alert">{{ error }}</div>{% endfor %}</div>
+        <div class="field" data-field="section"><label for="{{ form.section.id_for_label }}">Section <span class="optional-label">Optional when unavailable</span></label><p class="field-help">Choose a section after selecting your department, if sections are available.</p>{{ form.section }}<div class="live-feedback" data-feedback-for="section" aria-live="polite"></div>{% for error in form.section.errors %}<div class="error" role="alert">{{ error }}</div>{% endfor %}</div>
+      </div>
+    </fieldset>
+    <fieldset class="registration-section">
+      <legend>Bank Account Information</legend>
+      <div class="field" data-field="bank_account_number"><label for="{{ form.bank_account_number.id_for_label }}">Bank account number <span class="required-label">Required</span></label><p class="field-help">Enter exactly 13 digits. Example: 1000311592975.</p>{{ form.bank_account_number }}<div class="live-feedback" data-feedback-for="bank_account_number" aria-live="polite"></div>{% for error in form.bank_account_number.errors %}<div class="error" role="alert">{{ error }}</div>{% endfor %}</div>
+    </fieldset>
+    <fieldset class="registration-section">
+      <legend>Bank Book Upload</legend>
+      <div class="field" data-field="bank_book_photo"><label for="{{ form.bank_book_photo.id_for_label }}">Bank-book image <span class="required-label">Required</span></label><p class="field-help">Accepted file types: JPG, JPEG, or PNG. Maximum size: 1 MB (1024 KB).</p>{{ form.bank_book_photo }}<div class="file-details" data-file-details aria-live="polite">No file selected.</div><div class="live-feedback" data-feedback-for="bank_book_photo" aria-live="polite"></div>{% for error in form.bank_book_photo.errors %}<div class="error" role="alert">{{ error }}</div>{% endfor %}</div>
+    </fieldset>
+    <fieldset class="registration-section confirmation-section">
+      <legend>Confirmation and Consent</legend>
+      <div class="field" data-field="confirmation_name"><p class="confirmation-instruction">Type your full name exactly as you entered it in the Full Name field above to confirm that your submitted information is correct.</p><label for="{{ form.confirmation_name.id_for_label }}">Confirmation name <span class="required-label">Required</span></label>{{ form.confirmation_name }}<div class="live-feedback" data-feedback-for="confirmation_name" aria-live="polite"></div>{% for error in form.confirmation_name.errors %}<div class="error" role="alert">{{ error }}</div>{% endfor %}</div>
+      <div class="consent-field field" data-field="information_confirmed">{{ form.information_confirmed }}<label for="{{ form.information_confirmed.id_for_label }}">{{ form.information_confirmed.label }} <span class="required-label">Required</span></label><div class="live-feedback" data-feedback-for="information_confirmed" aria-live="polite"></div>{% for error in form.information_confirmed.errors %}<div class="error" role="alert">{{ error }}</div>{% endfor %}</div>
+    </fieldset>
+    <div class="registration-actions"><p class="required-note"><span class="required-label">Required</span> fields must be completed.</p><button id="registration-submit" class="button" type="submit" disabled><span class="submit-label">Submit Registration</span><span class="submit-loading" aria-hidden="true">Submitting...</span></button></div>
   </form>
 </section>
-{% if department_sections_json %}
-<script id="dept-sections-data" type="application/json">
-  {{ department_sections_json|safe }}
-</script>
+<script id="dept-sections-data" type="application/json">{{ department_sections_json|default:"{}"|safe }}</script>
 <script>
 document.addEventListener("DOMContentLoaded", function() {
-  const deptSelect = document.getElementById("id_department");
-  const sectionSelect = document.getElementById("id_section");
+  const form = document.getElementById("registration-form");
+  const submitButton = document.getElementById("registration-submit");
+  const department = document.getElementById("id_department");
+  const section = document.getElementById("id_section");
+  const fullName = document.getElementById("id_full_name");
+  const photo = document.getElementById("id_bank_book_photo");
+  const fileDetails = document.querySelector("[data-file-details]");
   const dataScript = document.getElementById("dept-sections-data");
-  if (!deptSelect || !sectionSelect || !dataScript) return;
+  const sectionsByDepartment = JSON.parse(dataScript.textContent || "{}");
+  const initialSection = section.value;
+  const touched = new Set();
+  let submitting = false;
 
-  const sectionsByDept = JSON.parse(dataScript.textContent);
-  const initialValue = sectionSelect.value;
+  function showFeedback(name, message, valid) {
+    const field = document.querySelector('[data-field="' + name + '"]');
+    const input = document.getElementById("id_" + name);
+    const target = document.querySelector('[data-feedback-for="' + name + '"]');
+    if (!field || !input || !target) return !message;
+    const show = touched.has(name);
+    field.classList.toggle("has-error", show && Boolean(message));
+    field.classList.toggle("has-success", show && valid && !message);
+    input.setAttribute("aria-invalid", show && Boolean(message) ? "true" : "false");
+    target.textContent = show ? (message || (valid ? "Looks good." : "")) : "";
+    target.classList.toggle("feedback-success", show && valid && !message);
+    return !message;
+  }
+
+  function validate(name) {
+    const input = document.getElementById("id_" + name);
+    if (!input) return true;
+    const value = input.value.trim();
+    let message = "";
+    let valid = false;
+    if (["student_id", "full_name", "department", "academic_year", "bank_account_number", "confirmation_name"].includes(name) && !value) {
+      message = "This field is required.";
+    } else if (name === "student_id") {
+      valid = /^BDU[A-Za-z0-9]{7}$/.test(value);
+      if (!valid) message = "Student ID must start with BDU and contain exactly 10 characters, for example BDU1508104.";
+    } else if (name === "full_name") {
+      valid = value.length <= 150;
+      if (!valid) message = "Full name must be 150 characters or fewer.";
+    } else if (name === "department" || name === "academic_year") {
+      valid = Boolean(value);
+    } else if (name === "section") {
+      valid = section.disabled || Boolean(value);
+      if (!valid) message = "Select a section for this department.";
+    } else if (name === "bank_account_number") {
+      valid = /^\d{13}$/.test(value);
+      if (!valid) message = "Bank account number must contain exactly 13 digits.";
+    } else if (name === "confirmation_name") {
+      valid = Boolean(fullName.value) && input.value === fullName.value;
+      if (!valid) message = "Confirmation name must exactly match the Full Name field.";
+    } else if (name === "information_confirmed") {
+      valid = input.checked;
+      if (!valid) message = "Please confirm that your information is accurate.";
+    }
+    return showFeedback(name, message, valid);
+  }
+
+  function formatSize(bytes) {
+    return bytes < 1024 ? bytes + " B" : (bytes / 1024).toFixed(1) + " KB";
+  }
+
+  function validatePhoto() {
+    const file = photo.files[0];
+    let message = "";
+    if (!file) {
+      message = "Please select a bank-book image.";
+      fileDetails.textContent = "No file selected.";
+    } else if (!file.type.match(/^image\/(jpeg|png)$/i)) {
+      message = "Choose a JPG, JPEG, or PNG image.";
+      fileDetails.textContent = "Selected: " + file.name;
+    } else if (file.size > 1024 * 1024) {
+      message = "This image is larger than 1 MB (1024 KB). Choose a smaller file.";
+      fileDetails.textContent = "Selected: " + file.name + " (" + formatSize(file.size) + ")";
+    } else {
+      fileDetails.textContent = "Selected: " + file.name + " (" + formatSize(file.size) + ")";
+    }
+    return showFeedback("bank_book_photo", message, Boolean(file) && !message);
+  }
 
   function updateSections(preserveValue) {
-    const deptId = deptSelect.value;
-    const sections = (deptId && sectionsByDept[deptId]) ? sectionsByDept[deptId] : [];
-    const currentVal = preserveValue ? (sectionSelect.value || initialValue) : "";
-
-    sectionSelect.innerHTML = "";
-
-    if (!deptId) {
-      const opt = document.createElement("option");
-      opt.value = "";
-      opt.textContent = "Select department first";
-      sectionSelect.appendChild(opt);
-      sectionSelect.disabled = true;
-    } else if (sections.length === 0) {
-      const opt = document.createElement("option");
-      opt.value = "";
-      opt.textContent = "No sections available (not required)";
-      sectionSelect.appendChild(opt);
-      sectionSelect.disabled = true;
+    const departmentId = department.value;
+    const availableSections = sectionsByDepartment[departmentId] || [];
+    const selectedValue = preserveValue ? (section.value || initialSection) : "";
+    section.innerHTML = "";
+    if (!departmentId) {
+      section.add(new Option("Select department first", ""));
+      section.disabled = true;
+    } else if (!availableSections.length) {
+      section.add(new Option("No sections available (not required)", ""));
+      section.disabled = true;
     } else {
-      sectionSelect.disabled = false;
-      const placeholder = document.createElement("option");
-      placeholder.value = "";
-      placeholder.textContent = "Select section";
-      sectionSelect.appendChild(placeholder);
-
-      sections.forEach(function(sec) {
-        const opt = document.createElement("option");
-        opt.value = sec.id;
-        opt.textContent = sec.name;
-        if (String(sec.id) === String(currentVal)) {
-          opt.selected = true;
-        }
-        sectionSelect.appendChild(opt);
+      section.disabled = false;
+      section.add(new Option("Select section", ""));
+      availableSections.forEach(function(item) {
+        const option = new Option(item.name, item.id);
+        option.selected = String(item.id) === String(selectedValue);
+        section.add(option);
       });
     }
   }
 
-  deptSelect.addEventListener("change", function() {
-    updateSections(false);
+  function validateAll() {
+    const names = ["student_id", "full_name", "department", "academic_year", "section", "bank_account_number", "confirmation_name", "information_confirmed"];
+    const valid = names.map(validate).every(Boolean) && validatePhoto();
+    submitButton.disabled = !valid || submitting;
+    return valid;
+  }
+
+  ["student_id", "full_name", "department", "academic_year", "section", "bank_account_number", "confirmation_name", "information_confirmed"].forEach(function(name) {
+    const input = document.getElementById("id_" + name);
+    if (!input) return;
+    input.addEventListener("focus", function() { touched.add(name); });
+    input.addEventListener("input", function() {
+      touched.add(name);
+      if (name === "department") updateSections(false);
+      validateAll();
+    });
+    input.addEventListener("change", function() {
+      touched.add(name);
+      if (name === "department") updateSections(false);
+      validateAll();
+    });
+  });
+
+  photo.addEventListener("change", function() {
+    touched.add("bank_book_photo");
+    validateAll();
+  });
+
+  form.addEventListener("submit", function(event) {
+    if (!validateAll()) {
+      event.preventDefault();
+      return;
+    }
+    submitting = true;
+    submitButton.disabled = true;
+    submitButton.classList.add("is-loading");
+    submitButton.setAttribute("aria-busy", "true");
   });
 
   updateSections(true);
+  validateAll();
 });
 </script>
-{% endif %}
 {% endblock %}
