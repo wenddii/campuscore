@@ -10,7 +10,7 @@
 <body>
   <header class="topbar">
     <a class="brand" href="{% url 'registrations:register' %}">CampusCore</a>
-    {% if request.user.is_authenticated %}
+    {% if request.user.is_authenticated and request.resolver_match.namespace != "registrations" %}
       <nav>{% if request.user.is_staff %}<a href="{% url 'students:dashboard' %}">Dashboard</a>{% endif %}<form class="inline-form" method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit" class="link-button">Log out</button></form></nav>
     {% endif %}
   </header>

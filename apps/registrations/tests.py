@@ -121,6 +121,23 @@ class RegistrationSeasonTests(TestCase):
         self.assertNotContains(response, ">Dashboard</a>")
         self.assertNotContains(response, "Owner login")
 
+        owner = get_user_model().objects.create_user(
+            username="owner-user",
+            password="owner-password",
+            is_staff=True,
+        )
+        self.client.force_login(owner)
+
+        dashboard_response = self.client.get("/dashboard/")
+        self.assertContains(dashboard_response, ">Dashboard</a>")
+        self.assertContains(dashboard_response, "Log out")
+
+        response = self.client.get("/register/")
+
+        self.assertNotContains(response, ">Dashboard</a>")
+        self.assertNotContains(response, "Log out")
+        self.assertNotContains(response, "Owner login")
+
     def test_registration_page_has_check_information_button(self):
         response = self.client.get("/register/")
         self.assertEqual(response.status_code, 200)
